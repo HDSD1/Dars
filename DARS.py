@@ -357,13 +357,12 @@ class PERBufferSAC:
 class SACActor(nn.Module):
     """★ V4: Attention-Enhanced Actor.
 
-    全局上下文用于 UAV 动作；逐用户表示与全局上下文拼接后，
-    通过参数共享的卸载头产生对应用户的动作分布。
+    全局上下文用于输出 UAV 飞行动作；卸载比例和资源分配由环境内层求解。
     """
     def __init__(self, s_dim, a_dim):
         super().__init__()
-        if a_dim != 3 * K + M:
-            raise ValueError("SACActor requires action layout [3K movement, M offloading]")
+        if a_dim != 3 * K:
+            raise ValueError("SACActor requires a 3K movement-only action")
         self.user_attn = UserAttention()
         combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM
         self.fc1 = nn.Linear(combined_dim, HIDDEN_DIM_1)
@@ -372,18 +371,13 @@ class SACActor(nn.Module):
         self.ln2 = nn.LayerNorm(HIDDEN_DIM_2)
         self.mean_head = nn.Linear(HIDDEN_DIM_2, 3 * K)
         self.log_std_head = nn.Linear(HIDDEN_DIM_2, 3 * K)
-        self.offload_fc = nn.Linear(
-            ATTENTION_EMBED_DIM + HIDDEN_DIM_2, ATTENTION_EMBED_DIM)
-        self.offload_mean_head = nn.Linear(ATTENTION_EMBED_DIM, 1)
-        self.offload_log_std_head = nn.Linear(ATTENTION_EMBED_DIM, 1)
         self._init_weights()
 
     def _init_weights(self):
-        for layer in [self.fc1, self.fc2, self.offload_fc]:
+        for layer in [self.fc1, self.fc2]:
             nn.init.xavier_uniform_(layer.weight)
             nn.init.zeros_(layer.bias)
-        for layer in [self.mean_head, self.log_std_head,
-                      self.offload_mean_head, self.offload_log_std_head]:
+        for layer in [self.mean_head, self.log_std_head]:
             nn.init.uniform_(layer.weight, -3e-3, 3e-3)
             nn.init.zeros_(layer.bias)
 
@@ -393,15 +387,11 @@ class SACActor(nn.Module):
         return torch.cat([uav_feat, user_tokens.mean(dim=1)], dim=1), user_tokens
 
     def forward(self, state):
-        x, user_tokens = self._encode(state)
+        x, _ = self._encode(state)
         x = torch.relu(self.ln1(self.fc1(x)))
         x = torch.relu(self.ln2(self.fc2(x)))
-        context = x.unsqueeze(1).expand(-1, user_tokens.shape[1], -1)
-        offload = torch.relu(self.offload_fc(torch.cat([user_tokens, context], dim=-1)))
-        mean = torch.cat([self.mean_head(x),
-                          self.offload_mean_head(offload).squeeze(-1)], dim=1)
-        log_std = torch.cat([self.log_std_head(x),
-                             self.offload_log_std_head(offload).squeeze(-1)], dim=1)
+        mean = self.mean_head(x)
+        log_std = self.log_std_head(x)
         log_std = log_std.clamp(LOG_SIG_MIN, LOG_SIG_MAX)
         return mean, log_std
 
@@ -431,17 +421,10 @@ class TwinCritic(nn.Module):
     """
     def __init__(self, s_dim, a_dim):
         super().__init__()
-        if a_dim != 3 * K + M:
-            raise ValueError("TwinCritic requires action layout [3K movement, M offloading]")
+        if a_dim != 3 * K:
+            raise ValueError("TwinCritic requires a 3K movement-only action")
         self.user_attn = UserAttention()
-        # 在聚合前编码用户与其卸载动作的配对，避免丢失对应关系。
-        self.user_action_encoder = nn.Sequential(
-            nn.Linear(ATTENTION_EMBED_DIM + 1, ATTENTION_EMBED_DIM),
-            nn.ReLU(),
-            nn.Linear(ATTENTION_EMBED_DIM, ATTENTION_EMBED_DIM),
-            nn.ReLU(),
-        )
-        combined_dim = UAV_FEAT_DIM + 2 * ATTENTION_EMBED_DIM + 3 * K
+        combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM + 3 * K
         # Q1
         self.fc1_1 = nn.Linear(combined_dim, HIDDEN_DIM_1)
         self.ln1_1 = nn.LayerNorm(HIDDEN_DIM_1)
@@ -457,10 +440,6 @@ class TwinCritic(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
-        for layer in self.user_action_encoder:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                nn.init.zeros_(layer.bias)
         for layer in [self.fc1_1, self.fc1_2, self.fc2_1, self.fc2_2]:
             nn.init.xavier_uniform_(layer.weight)
             nn.init.zeros_(layer.bias)
@@ -471,11 +450,8 @@ class TwinCritic(nn.Module):
     def forward(self, state, action):
         uav_feat, user_feat = decompose_state(state)
         user_tokens = self.user_attn(user_feat, return_tokens=True)
-        offload_action = action[:, 3 * K:].unsqueeze(-1)
-        user_action_embed = self.user_action_encoder(
-            torch.cat([user_tokens, offload_action], dim=-1)).mean(dim=1)
         x = torch.cat([uav_feat, user_tokens.mean(dim=1),
-                       user_action_embed, action[:, :3 * K]], dim=1)
+                       action], dim=1)
         q1 = torch.relu(self.ln1_1(self.fc1_1(x)))
         q1 = torch.relu(self.ln1_2(self.fc1_2(q1)))
         q1 = self.fc1_3(q1)

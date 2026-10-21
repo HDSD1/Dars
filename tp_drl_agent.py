@@ -9,23 +9,21 @@ Adapted from:
 Core ideas from the original paper:
   1. Task Priority: tasks have different urgency levels; high-priority tasks
      should be offloaded/served preferentially.
-  2. Hybrid Action Space: binary offloading (discrete) + trajectory/resource
-     (continuous). The original paper uses a latent-space DRL to handle this.
+  2. Movement-only continuous actions in this adaptation. Offloading and
+     resource allocation are handled by the environment's joint optimizer.
   3. Single-Critic DDPG backbone (not TD3/SAC).
 
 Fair-comparison adaptation for this codebase:
   - Task Priority Encoder: learns a priority embedding from per-user features
     (task size, active status, distance to nearest UAV) and injects it into
     the actor/critic as auxiliary state information.
-  - Binary Offloading Regularization: an auxiliary loss that encourages
-    offloading ratios toward 0 or 1, mimicking the paper's binary mode.
   - Single Critic (not twin): matches the original DDPG backbone.
   - Uniform Replay Buffer (no PER): the original paper does not use PER.
   - Priority-Weighted Actor Loss: Q-gradient is scaled by task priority
     importance, so the actor focuses on high-demand decisions.
 
 Key differences from other baselines in this project:
-  vs DDPG:     + task priority encoder, + binary offloading regularization
+  vs DDPG:     + task priority encoder
   vs TD3:      single critic (not twin), + task priority, no policy smoothing
   vs SAC:      deterministic policy, single critic, + task priority
   vs DARS:     no PER, no Attention, no dual-priority, single critic, + task priority
@@ -47,9 +45,6 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # TP-DRL 专用超参数
 PRIORITY_EMBED_DIM = 32       # 优先级嵌入维度
-BINARY_REG_WEIGHT = 0.05      # 二值卸载正则化权重 (鼓励 offload→0 或 1)
-BINARY_REG_DECAY = 0.9999     # 正则权重衰减 (训练后期减弱约束)
-BINARY_REG_MIN = 0.005        # 正则权重下限
 USER_FEAT_DIM = 4             # 每用户特征: (task, active, dist_to_uav_min, loc_norm)
 
 
@@ -158,8 +153,7 @@ class TPActor(nn.Module):
     与标准 DDPG Actor 的区别:
       - 输入不是 raw state, 而是 [state, priority_embed] 的拼接
       - TaskPriorityEncoder 作为网络的一部分, 端到端训练
-      - 飞行动作 (3K 维) 和卸载动作 (M 维) 共享同一个 trunk,
-        但卸载输出经过 sigmoid 鼓励二值化 (原论文 binary offloading)
+      - 只输出 3K 维飞行动作；卸载与资源分配由环境内层联合求解
 
     与 DARS 的 SACActor 的区别:
       - 确定性策略 (不输出 mean/std), 不采样
@@ -172,7 +166,8 @@ class TPActor(nn.Module):
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.n_fly = 3 * K     # 飞行动作维度
-        self.n_offload = M     # 卸载动作维度
+        if a_dim != self.n_fly:
+            raise ValueError("TPActor requires a 3K movement-only action")
 
         # 优先级编码器 (端到端训练)
         self.priority_encoder = TaskPriorityEncoder()
@@ -186,15 +181,13 @@ class TPActor(nn.Module):
 
         # 飞行头: 输出 cos, sin, speed (tanh 映射到 [-1, 1])
         self.fly_head = nn.Linear(HIDDEN_DIM_2, self.n_fly)
-        # 卸载头: 输出卸载比例 (tanh 映射到 [-1, 1])
-        self.offload_head = nn.Linear(HIDDEN_DIM_2, self.n_offload)
         self._init_weights()
 
     def _init_weights(self):
         for layer in [self.fc1, self.fc2]:
             nn.init.xavier_uniform_(layer.weight)
             nn.init.zeros_(layer.bias)
-        for layer in [self.fly_head, self.offload_head]:
+        for layer in [self.fly_head]:
             nn.init.uniform_(layer.weight, -3e-3, 3e-3)
             nn.init.zeros_(layer.bias)
 
@@ -212,23 +205,7 @@ class TPActor(nn.Module):
 
         # 飞行动作: tanh → [-1, 1]
         fly_action = torch.tanh(self.fly_head(x)) * ACTION_BOUND[1]
-        # 卸载动作: tanh → [-1, 1]
-        offload_action = torch.tanh(self.offload_head(x)) * ACTION_BOUND[1]
-
-        return torch.cat([fly_action, offload_action], dim=1)
-
-    def get_offload_logits(self, state):
-        """返回卸载头的 raw logits (用于二值正则化).
-
-        二值正则化: L_binary = -mean(|sigmoid(logit) - 0.5|)
-        鼓励 sigmoid 输出趋向 0 或 1, 模拟原论文的 binary offloading.
-        """
-        user_feat = extract_user_features(state)
-        priority_embed = self.priority_encoder(user_feat)
-        x = torch.cat([state, priority_embed], dim=1)
-        x = torch.relu(self.ln1(self.fc1(x)))
-        x = torch.relu(self.ln2(self.fc2(x)))
-        return self.offload_head(x)
+        return fly_action
 
 
 # ==================================================================
@@ -349,14 +326,12 @@ class TPDRLAgent:
 
     训练循环与标准 DDPG 类似, 但有三处关键差异:
       1. Actor/Critic 都包含 TaskPriorityEncoder (端到端训练)
-      2. Actor loss 附加二值卸载正则化项
+      2. Actor 只控制飞行动作；卸载由环境内层联合求解
       3. 单 Critic (无 clipped double-Q)
 
     Loss 定义:
       L_critic = MSE(Q(s,a), r + γ Q'(s', μ'(s')))
-      L_actor  = -Q(s, μ(s)) + λ_binary · L_binary
-      L_binary = -mean(|sigmoid(offload_logits) - 0.5|)
-                 (鼓励 sigmoid 输出趋向 0 或 1)
+      L_actor  = -Q(s, μ(s))
     """
 
     display_name = "TP-DRL"
@@ -384,7 +359,6 @@ class TPDRLAgent:
         self.ou_noise = OUNoise(a_dim, sigma=0.2)
 
         # 二值正则化权重 (训练过程中衰减)
-        self._binary_reg_weight = BINARY_REG_WEIGHT
         self._learn_step = 0
 
     def select_action(self, state, noise_std=0.0, use_ou=False, **kw):
@@ -428,14 +402,7 @@ class TPDRLAgent:
         # 策略梯度: 最大化 Q
         pg_loss = -self.critic(states, pred_actions).mean()
 
-        # ★ 二值卸载正则化 (原论文 binary offloading 的近似)
-        # L_binary = -mean(|sigmoid(logits) - 0.5|)
-        # sigmoid(logit) ∈ (0,1), 当输出趋向 0 或 1 时 |·-0.5| → 0.5 (最大)
-        # 取负号使其成为最小化目标 → 鼓励二值化
-        offload_logits = self.actor.get_offload_logits(states)
-        binary_loss = -torch.abs(torch.sigmoid(offload_logits) - 0.5).mean()
-
-        actor_loss = pg_loss + self._binary_reg_weight * binary_loss
+        actor_loss = pg_loss
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -446,17 +413,10 @@ class TPDRLAgent:
         self._soft_update(self.actor_target, self.actor)
         self._soft_update(self.critic_target, self.critic)
 
-        # ---- 衰减二值正则权重 ----
-        self._binary_reg_weight = max(
-            BINARY_REG_MIN,
-            self._binary_reg_weight * BINARY_REG_DECAY,
-        )
-
         return {
             'critic_loss': critic_loss.item(),
             'avg_q': current_q.mean().item(),
             'avg_td_error': (y - current_q).abs().mean().item(),
-            'binary_reg': self._binary_reg_weight,
         }
 
     @staticmethod

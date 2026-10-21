@@ -37,9 +37,7 @@ def build_instance(seed, n_users, capacity):
     env.active_mask[:n_users] = True
     env.task_list[:] = 0.0
     env.task_list[:n_users] = rng.integers(TASK_MIN, TASK_MAX + 1, n_users)
-    x = np.zeros(M, dtype=np.float64)
-    x[:n_users] = rng.uniform(0.2, 1.0, n_users)
-    return env, x, n_users
+    return env, n_users
 
 
 def assignment_value(env, association, context):
@@ -98,7 +96,7 @@ def online_timing(seed, repeats):
     samples = []
     for _ in range(repeats):
         started = time.perf_counter()
-        env._associate(env.loc_uav, x)
+        env._associate(env.loc_uav)
         samples.append((time.perf_counter() - started) * 1000.0)
     return float(np.mean(samples)), float(np.max(samples))
 
@@ -131,9 +129,9 @@ def main():
     exact_combine_ms = []
 
     for instance in range(args.instances):
-        env, x, n_users = build_instance(args.seed + instance,
-                                         args.users, args.capacity)
-        context = env._association_value_context(env.loc_uav, x)
+        env, n_users = build_instance(args.seed + instance,
+                                      args.users, args.capacity)
+        context = env._association_value_context(env.loc_uav)
 
         optimum, precompute_ms, combine_ms = exact_two_uav_dp(
             env, context, n_users, args.capacity)
@@ -153,7 +151,7 @@ def main():
         env.association_method = "marginal"
         env.association_local_search_passes = 0
         started = time.perf_counter()
-        greedy_assignment, _ = env._marginal_gain_association(env.loc_uav, x)
+        greedy_assignment, _, _ = env._marginal_gain_association(env.loc_uav)
         greedy_ms = (time.perf_counter() - started) * 1000.0
         greedy_value = assignment_value(env, greedy_assignment, context)
         ratios["marginal"].append(greedy_value / optimum if optimum > 0 else 1.0)
@@ -161,7 +159,7 @@ def main():
 
         env.association_local_search_passes = args.local_search_passes
         started = time.perf_counter()
-        improved_assignment, _ = env._marginal_gain_association(env.loc_uav, x)
+        improved_assignment, _, _ = env._marginal_gain_association(env.loc_uav)
         improved_ms = (time.perf_counter() - started) * 1000.0
         improved_value = assignment_value(env, improved_assignment, context)
         ratios["marginal+move/swap"].append(

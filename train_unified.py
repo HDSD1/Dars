@@ -119,7 +119,7 @@ class RandomAgent:
 
 
 class FixedOffloadAgent:
-    """固定卸载比例策略."""
+    """悬停基线；固定卸载比例由环境的 offload_mode 参数设置。"""
     def __init__(self, offload_ratio=1.0):
         self.a_dim = ACTION_DIM
         self.offload_ratio = offload_ratio
@@ -134,9 +134,6 @@ class FixedOffloadAgent:
             action[3 * k] = 0.0       # cos → 0
             action[3 * k + 1] = 0.0   # sin → 0
             action[3 * k + 2] = -1.0  # 速度 → 0
-        # 卸载比例
-        x = self.offload_ratio * 2 - 1  # [0,1] → [-1,1]
-        action[3 * K:] = x
         return np.clip(action, -1, 1)
 
     def store(self, *args): pass
@@ -151,17 +148,20 @@ def create_random():
 
 @register_algo('all_local')
 def create_all_local():
-    return FixedOffloadAgent(offload_ratio=0.0), False, {}
+    return FixedOffloadAgent(offload_ratio=0.0), False, {
+        'offload_mode': 'fixed', 'fixed_offload_ratio': 0.0}
 
 
 @register_algo('all_offload')
 def create_all_offload():
-    return FixedOffloadAgent(offload_ratio=1.0), False, {}
+    return FixedOffloadAgent(offload_ratio=1.0), False, {
+        'offload_mode': 'fixed', 'fixed_offload_ratio': 1.0}
 
 
 @register_algo('half_offload')
 def create_half_offload():
-    return FixedOffloadAgent(offload_ratio=0.5), False, {}
+    return FixedOffloadAgent(offload_ratio=0.5), False, {
+        'offload_mode': 'fixed', 'fixed_offload_ratio': 0.5}
 
 
 # ---- 本文方法 (Attention-PER-SAC+CVX) ----

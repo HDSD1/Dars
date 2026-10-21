@@ -92,7 +92,6 @@ class PriorityGreedyAgent:
     def select_action(self, state, noise_std=0.0, **kw):
         battery, uav_pos, ue_pos, task, active = self._parse_state(state)
         action = np.zeros(self.a_dim, dtype=np.float64)
-        priority_users = set()
 
         for k in range(K):
             battery_ratio = battery[k] / E_BATTERY_INIT if E_BATTERY_INIT > 0 else 1.0
@@ -111,23 +110,8 @@ class PriorityGreedyAgent:
             else:
                 target, selected = self._priority_target(
                     uav_pos[k], ue_pos, task, active)
-                priority_users.update(int(i) for i in selected)
 
             action[3 * k: 3 * k + 3] = self._to_movement(uav_pos[k], target)
-
-        # Priority offloading: avoid brittle all-offload. High-priority users
-        # get a larger offloading ratio, while other active users use moderate
-        # offloading so bandwidth/CPU are not exhausted by a few tasks.
-        max_task = max(float(np.max(task)), 1e-9)
-        for i in range(M):
-            if active[i] <= 0.5:
-                x = 0.0
-            elif i in priority_users:
-                x = 0.70 + 0.20 * float(task[i] / max_task)
-            else:
-                x = 0.35 + 0.20 * float(task[i] / max_task)
-            x = float(np.clip(x, 0.0, 0.9))
-            action[3 * K + i] = 2.0 * x - 1.0
 
         return np.clip(action, ACTION_BOUND[0], ACTION_BOUND[1])
 

@@ -4,7 +4,7 @@
 规则决策, 不涉及任何学习:
   1. 电量 > 30%: 飞向最近的 active 用户密集区中心
   2. 电量 ≤ 30%: 飞向最近的 WCT 充电
-  3. 卸载比例: 全卸载 (x=1.0)
+  3. 卸载比例和资源分配由环境内层优化器求解
 """
 import numpy as np
 import math
@@ -89,10 +89,6 @@ class GreedyAgent:
                 action[3*k] = dx / dist       # cos(θ)
                 action[3*k+1] = dy / dist     # sin(θ)
                 action[3*k+2] = min(1.0, dist / 50.0) * 2 - 1  # 速度
-
-        # 卸载: 全部卸载
-        x = self.offload_ratio * 2 - 1
-        action[3*K:] = x
 
         return np.clip(action, ACTION_BOUND[0], ACTION_BOUND[1])
 

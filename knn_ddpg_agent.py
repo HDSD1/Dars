@@ -28,7 +28,7 @@ from ddpg_agent import DDPGAgent, DEVICE
 
 
 class KNNDDPGAgent(DDPGAgent):
-    """DDPG with a KNN task-demand prior for movement and offloading."""
+    """DDPG with a KNN task-demand prior for UAV movement."""
 
     def __init__(self, s_dim=None, a_dim=ACTION_DIM,
                  knn_k=5, blend=0.30, min_blend=0.15,
@@ -104,8 +104,6 @@ class KNNDDPGAgent(DDPGAgent):
             self._parse_normalized_state(state)
 
         prior = np.zeros(self.a_dim, dtype=np.float64)
-        selected_users = set()
-
         for k in range(K):
             nearest_wct, dist_to_wct = self._nearest_wct(uav_pos[k])
             if (battery_ratio[k] <= self.battery_threshold or
@@ -113,23 +111,12 @@ class KNNDDPGAgent(DDPGAgent):
                 target = nearest_wct
                 selected = []
             else:
-                target, selected = self._knn_task_centroid(
+                target, _ = self._knn_task_centroid(
                     uav_pos[k], ue_pos, task_norm, active)
-                selected_users.update(int(i) for i in selected)
 
             prior[3 * k: 3 * k + 3] = self._movement_action(
                 uav_pos[k], target)
 
-        # Offloading prior: active KNN users are encouraged to offload more;
-        # inactive users keep the neutral ratio. This avoids the brittle
-        # all-offload behavior of simple greedy baselines.
-        offload_prior = np.zeros(M, dtype=np.float64)
-        for i in range(M):
-            if active[i] > 0.5:
-                offload_prior[i] = 0.55 if i in selected_users else -0.10
-            else:
-                offload_prior[i] = -1.0
-        prior[3 * K: 3 * K + M] = offload_prior
         return np.clip(prior, ACTION_BOUND[0], ACTION_BOUND[1])
 
     def select_action(self, state, noise_std=0.0, use_ou=False):
