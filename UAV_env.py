@@ -9,6 +9,7 @@
 """
 
 import math
+import time
 import numpy as np
 
 from config import (
@@ -32,7 +33,10 @@ class UAVEnv:
     """多 UAV-MEC 计算卸载环境 (V5, 支持凸优化算力分配)."""
 
     def __init__(self, use_cvx_alloc=False,
-                 use_hotspot=True, disable_wct=False):
+                 use_hotspot=True, disable_wct=False,
+                 association_method="marginal",
+                 association_local_search_passes=2,
+                 association_capacity=None):
         """
         Args:
             use_cvx_alloc: True → 凸优化最优算力+带宽分配
@@ -40,6 +44,10 @@ class UAVEnv:
             use_hotspot: True → 分阶段热/冷簇轮转 (3阶段)
                          False → 全局统一 TASK_PROB
             disable_wct: True → 关闭充电 (消融实验用)
+            association_method: "marginal" → 按当前 SLRR 边际增益关联
+                               "distance" → 距离优先贪心关联 (对照方法)
+            association_local_search_passes: 边际关联后的 move/swap 改进轮数上限
+            association_capacity: 每架 UAV 的最大关联用户数; 默认使用 N_MAX
         """
         self.state_dim = STATE_DIM
         self.action_dim = ACTION_DIM
@@ -48,6 +56,13 @@ class UAVEnv:
         self.use_cvx_alloc = use_cvx_alloc
         self.use_hotspot = use_hotspot
         self.disable_wct = disable_wct
+        if association_method not in {"marginal", "distance"}:
+            raise ValueError("association_method must be 'marginal' or 'distance'")
+        self.association_method = association_method
+        self.association_local_search_passes = max(
+            0, int(association_local_search_passes))
+        self.association_capacity = (
+            N_MAX if association_capacity is None else max(0, int(association_capacity)))
 
         self.wct_positions = self._init_wct_positions()
 
@@ -163,25 +178,33 @@ class UAVEnv:
         candidate = np.clip(proposed, -1.0, 1.0)
         original_check = self._step_candidate(candidate, evaluate_only=True)
         checks = 1
+        association_elapsed = original_check.get(
+            'association_search', {}).get('seconds', 0.0)
         selected = candidate if original_check['feasible'] else None
+        selected_check = original_check if original_check['feasible'] else None
         if selected is None:
             # Closest feasible member of a finite set, measured in normalized
-            # actor coordinates. Always recompute association/resources/charging.
+            # actor coordinates. Every candidate gets its own association and
+            # feasibility check; the selected association is reused at execution.
             best_distance = float('inf')
             for alternative in self._safety_candidates(candidate):
                 check = self._step_candidate(alternative, evaluate_only=True)
                 checks += 1
+                association_elapsed += check.get(
+                    'association_search', {}).get('seconds', 0.0)
                 if check['feasible']:
                     distance = float(np.sum((alternative - candidate) ** 2))
                     if distance < best_distance:
                         selected = alternative.copy()
+                        selected_check = check
                         best_distance = distance
         if selected is None:
             result = self._energy_failure(
                 'shield_search_exhausted', original_check['energy_ok'],
                 original_failure_phase=original_check['phase'])
         else:
-            result = self._step_candidate(selected)
+            result = self._step_candidate(
+                selected, precomputed_association=selected_check)
         info = result[3]
         info.update({
             'proposed_action': proposed,
@@ -189,6 +212,7 @@ class UAVEnv:
             'shield_intervened': selected is None or not np.array_equal(selected, proposed),
             'shield_checks': checks,
             'shield_original_failure': original_check['phase'],
+            'association_evaluation_seconds': association_elapsed,
             'shield_status': ('no_feasible_candidate_found' if selected is None
                               else 'accepted' if np.array_equal(selected, proposed)
                               else 'corrected'),
@@ -223,7 +247,8 @@ class UAVEnv:
                     candidate[3*K:] = (action[3*K:] + 1.0) * scale - 1.0
                     yield candidate
 
-    def _step_candidate(self, action, evaluate_only=False):
+    def _step_candidate(self, action, evaluate_only=False,
+                        precomputed_association=None):
         action = np.clip(action, -1.0, 1.0)
         # ★ cos/sin 角度表示: 消除 0/2π 不连续性
         theta_list = np.zeros(K)
@@ -263,8 +288,15 @@ class UAVEnv:
             raise RuntimeError('Shield attempted to execute an infeasible flight')
         battery_postflight = battery_start - fly_energy
 
-        # ---- 2. 距离关联 ----
-        association = self._distance_association(new_loc_uav)
+        # ---- 2. 用户关联 ----
+        if (precomputed_association is not None and
+                'association' in precomputed_association):
+            association = precomputed_association['association'].copy()
+            association_search = precomputed_association.get(
+                'association_search', {})
+        else:
+            association, association_search = self._associate(
+                new_loc_uav, offload_ratios)
         N_k = np.zeros(K, dtype=int)
         for i in range(M):
             # 仅统计“活跃且实际发生卸载(x_i>0)”用户，避免幽灵带宽占用
@@ -336,7 +368,10 @@ class UAVEnv:
         energy_ok = service_end >= 0.0
         if not np.all(energy_ok):
             if evaluate_only:
-                return {'feasible': False, 'phase': 'service', 'energy_ok': energy_ok}
+                return {'feasible': False, 'phase': 'service',
+                        'energy_ok': energy_ok,
+                        'association': association.copy(),
+                        'association_search': association_search}
             raise RuntimeError('Shield attempted to execute infeasible service')
         # Accepted UAV work must finish before the service phase ends.
         # Local completion latency remains an analytical metric, without a
@@ -345,12 +380,16 @@ class UAVEnv:
         if not np.all(deadline_ok):
             if evaluate_only:
                 return {'feasible': False, 'phase': 'edge_deadline',
-                        'energy_ok': energy_ok, 'deadline_ok': deadline_ok}
+                        'energy_ok': energy_ok, 'deadline_ok': deadline_ok,
+                        'association': association.copy(),
+                        'association_search': association_search}
             raise RuntimeError('Shield attempted to execute overdue edge work')
         if evaluate_only:
             return {'feasible': True, 'phase': None, 'energy_ok': energy_ok,
                     'battery_postflight': battery_postflight,
-                    'battery_end': np.minimum(E_BATTERY_INIT, service_end)}
+                    'battery_end': np.minimum(E_BATTERY_INIT, service_end),
+                    'association': association.copy(),
+                    'association_search': association_search}
         # Constant phase-average net power: endpoints suffice in this model.
         self.e_battery_uav = np.minimum(E_BATTERY_INIT, service_end)
 
@@ -403,6 +442,8 @@ class UAVEnv:
         info = {
             'delays': delays, 'rho': rho_list,
             'association': association, 'energy_ok': energy_ok,
+            'association_method': self.association_method,
+            'association_search': association_search,
             'N_k': N_k,
             'delay_active_mean': delay_active_mean,
             'rho_mean': rho_mean,
@@ -535,10 +576,269 @@ class UAVEnv:
                 pairs.append((d_3d, i, k))
         pairs.sort(key=lambda x: x[0])
         for _, i, k in pairs:
-            if association[i] == -1 and capacity[k] < N_MAX:
+            if association[i] == -1 and capacity[k] < self.association_capacity:
                 association[i] = k
                 capacity[k] += 1
         return association
+
+    def _associate(self, uav_locs, offload_ratios):
+        """Dispatch to the selected association rule and return diagnostics."""
+        started = time.perf_counter()
+        if self.association_method == "distance":
+            association = self._distance_association(uav_locs)
+            diagnostics = {
+                'objective': None, 'cache_misses': 0, 'cache_hits': 0,
+                'local_search_passes': 0,
+            }
+        else:
+            association, diagnostics = self._marginal_gain_association(
+                uav_locs, offload_ratios)
+        diagnostics['seconds'] = time.perf_counter() - started
+        return association, diagnostics
+
+    def _association_value_context(self, uav_locs, offload_ratios):
+        """Precompute per-slot coefficients for the existing allocation model."""
+        x = np.asarray(offload_ratios, dtype=np.float64)
+        task = np.asarray(self.task_list, dtype=np.float64)
+        baseline = task * S_CYCLES / F_UE
+        cycles = task * S_CYCLES
+        spectral_efficiency = np.zeros((K, M), dtype=np.float64)
+        coverage = np.zeros(M, dtype=np.int64)
+
+        for i in range(M):
+            if not self.active_mask[i]:
+                continue
+            for k in range(K):
+                dx = uav_locs[k, 0] - self.loc_ue[i, 0]
+                dy = uav_locs[k, 1] - self.loc_ue[i, 1]
+                if dx * dx + dy * dy > R_COV * R_COV:
+                    continue
+                coverage[i] |= 1 << k
+                gain = self._channel_gain(uav_locs[k], self.loc_ue[i])
+                snr = max(P_TX * gain / SIGMA2, 1e-10)
+                spectral_efficiency[k, i] = math.log2(1.0 + snr)
+
+        return {
+            'x': x, 'task': task, 'baseline': baseline, 'cycles': cycles,
+            'spectral_efficiency': spectral_efficiency,
+            'coverage': coverage,
+        }
+
+    @staticmethod
+    def _mask_users(mask):
+        """Yield user indices encoded in a bit mask, in ascending order."""
+        mask = int(mask)
+        while mask:
+            bit = mask & -mask
+            yield bit.bit_length() - 1
+            mask ^= bit
+
+    @staticmethod
+    def _mask_size(mask):
+        """Count set bits without requiring a particular Python version."""
+        mask = int(mask)
+        count = 0
+        while mask:
+            mask &= mask - 1
+            count += 1
+        return count
+
+    def _association_subset_slrr(self, k, mask, context):
+        """Evaluate a UAV subset using the environment's current allocators.
+
+        This oracle matches the current Actor-offloading plus separate CPU and
+        bandwidth allocation path. It makes no monotonicity or submodularity
+        assumption.
+        """
+        users = np.fromiter(self._mask_users(mask), dtype=np.int64)
+        if users.size == 0:
+            return 0.0
+
+        x = context['x']
+        task = context['task']
+        baseline = context['baseline']
+        cycles = context['cycles']
+        spectral = context['spectral_efficiency'][k]
+        ratios = x[users]
+        edge_mask = ratios > 1e-10
+        edge_users = users[edge_mask]
+
+        # For positive ratios below the simulator's edge threshold, the task
+        # is evaluated as local-only, as in _step_candidate.
+        value = float(np.sum(ratios[(ratios > 0.0) & ~edge_mask]))
+        if edge_users.size == 0:
+            return value
+
+        if self.use_cvx_alloc:
+            # CPU allocation includes every positive x_i once at least one
+            # user consumes edge resources; bandwidth includes x_i > 1e-10.
+            cpu_users = users[ratios > 0.0]
+            cpu_roots = np.sqrt(np.maximum(x[cpu_users] * cycles[cpu_users], 0.0))
+            cpu_denom = max(float(np.sum(cpu_roots)), 1e-12)
+            cpu_delay = (np.sqrt(np.maximum(x[edge_users] * cycles[edge_users], 0.0))
+                         * cpu_denom / F_UAV)
+
+            bw_load = (x[edge_users] * task[edge_users] /
+                       np.maximum(spectral[edge_users], 1e-12))
+            bw_roots = np.sqrt(np.maximum(bw_load, 0.0))
+            bw_denom = max(float(np.sum(bw_roots)), 1e-12)
+            bw_delay = bw_roots * bw_denom / BANDWIDTH
+        else:
+            n_edge = edge_users.size
+            cpu_delay = x[edge_users] * cycles[edge_users] * n_edge / F_UAV
+            bw_delay = (x[edge_users] * task[edge_users] * n_edge /
+                        (BANDWIDTH * np.maximum(spectral[edge_users], 1e-12)))
+
+        local_delay = (1.0 - x[edge_users]) * baseline[edge_users]
+        edge_delay = cpu_delay + bw_delay
+        valid = baseline[edge_users] > 0.0
+        value += float(np.sum(
+            1.0 - np.maximum(local_delay[valid], edge_delay[valid]) /
+            baseline[edge_users[valid]]))
+        return value
+
+    def _marginal_gain_association(self, uav_locs, offload_ratios):
+        """Greedy SLRR association followed by bounded move/swap improvement."""
+        context = self._association_value_context(uav_locs, offload_ratios)
+        caches = [dict() for _ in range(K)]
+        cache_hits = 0
+        cache_misses = 0
+
+        def subset_value(k, mask):
+            nonlocal cache_hits, cache_misses
+            if mask in caches[k]:
+                cache_hits += 1
+                return caches[k][mask]
+            cache_misses += 1
+            value = self._association_subset_slrr(k, mask, context)
+            caches[k][mask] = value
+            return value
+
+        active_users = [i for i in range(M) if self.active_mask[i]]
+        masks = [0] * K
+        counts = [0] * K
+        assigned_mask = 0
+        current_values = [0.0] * K
+
+        # Greedily add the feasible user-UAV pair with the largest positive
+        # change in the actual per-slot sum-SLRR objective.
+        for _ in range(min(len(active_users), K * self.association_capacity)):
+            best_gain = 1e-12
+            best_pair = None
+            for i in active_users:
+                user_bit = 1 << i
+                if assigned_mask & user_bit:
+                    continue
+                for k in self._mask_users(context['coverage'][i]):
+                    if counts[k] >= self.association_capacity:
+                        continue
+                    candidate_mask = masks[k] | user_bit
+                    gain = subset_value(k, candidate_mask) - current_values[k]
+                    if gain > best_gain:
+                        best_gain = gain
+                        best_pair = (i, k)
+            if best_pair is None:
+                break
+            i, k = best_pair
+            user_bit = 1 << i
+            masks[k] |= user_bit
+            counts[k] += 1
+            assigned_mask |= user_bit
+            current_values[k] = subset_value(k, masks[k])
+
+        # A bounded best-improvement search limits online cost. Every accepted
+        # move strictly improves this same objective and remains feasible.
+        completed_passes = 0
+        for _ in range(self.association_local_search_passes):
+            current_objective = sum(current_values)
+            best_objective = current_objective + 1e-12
+            best_masks = None
+            owners = np.full(M, -1, dtype=int)
+            for k, mask in enumerate(masks):
+                for i in self._mask_users(mask):
+                    owners[i] = k
+
+            # Reconsider previously unassociated users and allow any assigned
+            # user to leave. Cross-UAV moves are searched for overlap users.
+            for i in active_users:
+                source = int(owners[i])
+                bit = 1 << i
+                if source < 0:
+                    for dest in self._mask_users(context['coverage'][i]):
+                        if counts[dest] >= self.association_capacity:
+                            continue
+                        candidate_masks = list(masks)
+                        candidate_masks[dest] |= bit
+                        candidate_objective = sum(
+                            subset_value(k, candidate_masks[k]) for k in range(K))
+                        if candidate_objective > best_objective:
+                            best_objective = candidate_objective
+                            best_masks = candidate_masks
+                    continue
+
+                candidate_masks = list(masks)
+                candidate_masks[source] &= ~bit
+                candidate_objective = sum(
+                    subset_value(k, candidate_masks[k]) for k in range(K))
+                if candidate_objective > best_objective:
+                    best_objective = candidate_objective
+                    best_masks = candidate_masks
+
+                if self._mask_size(context['coverage'][i]) < 2:
+                    continue
+                for dest in self._mask_users(context['coverage'][i]):
+                    if dest == source or counts[dest] >= self.association_capacity:
+                        continue
+                    candidate_masks = list(masks)
+                    candidate_masks[source] &= ~bit
+                    candidate_masks[dest] |= bit
+                    candidate_objective = sum(
+                        subset_value(k, candidate_masks[k]) for k in range(K))
+                    if candidate_objective > best_objective:
+                        best_objective = candidate_objective
+                        best_masks = candidate_masks
+
+            # Swap two selected users only when both cross-links are covered.
+            for pos, i in enumerate(active_users):
+                source_i = int(owners[i])
+                if source_i < 0 or self._mask_size(context['coverage'][i]) < 2:
+                    continue
+                for j in active_users[pos + 1:]:
+                    source_j = int(owners[j])
+                    if (source_j < 0 or source_i == source_j or
+                            self._mask_size(context['coverage'][j]) < 2):
+                        continue
+                    if (not (context['coverage'][i] & (1 << source_j)) or
+                            not (context['coverage'][j] & (1 << source_i))):
+                        continue
+                    candidate_masks = list(masks)
+                    candidate_masks[source_i] ^= (1 << i) | (1 << j)
+                    candidate_masks[source_j] ^= (1 << i) | (1 << j)
+                    candidate_objective = sum(
+                        subset_value(k, candidate_masks[k]) for k in range(K))
+                    if candidate_objective > best_objective:
+                        best_objective = candidate_objective
+                        best_masks = candidate_masks
+
+            if best_masks is None:
+                break
+            masks = best_masks
+            counts = [self._mask_size(mask) for mask in masks]
+            current_values = [subset_value(k, masks[k]) for k in range(K)]
+            completed_passes += 1
+
+        association = np.full(M, -1, dtype=int)
+        for k, mask in enumerate(masks):
+            for i in self._mask_users(mask):
+                association[i] = k
+
+        diagnostics = {
+            'objective': float(sum(current_values)),
+            'cache_misses': cache_misses,
+            'cache_hits': cache_hits,
+            'local_search_passes': completed_passes,
+        }
+        return association, diagnostics
 
     def _init_wct_positions(self):
         return WCT_POSITIONS.copy()

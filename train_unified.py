@@ -303,13 +303,17 @@ def create_per_ddpg_cvx_nowct():
 # 通用训练函数
 # ==================================================================
 def run_experiment(algo_name, n_episodes, seed, tag='default',
-                   use_hotspot=False, disable_wct=False):
+                   use_hotspot=False, disable_wct=False,
+                   association_method='marginal'):
     """运行单个算法, 返回并保存结果."""
     np.random.seed(seed)
     torch.manual_seed(seed)
 
     agent, needs_training, env_kwargs = ALGO_REGISTRY[algo_name]()
     env_kwargs = dict(env_kwargs)
+    env_kwargs['association_method'] = association_method
+    association_suffix = (
+        '' if association_method == 'marginal' else f'_{association_method}')
     if use_hotspot:
         env_kwargs['use_hotspot'] = True
     if disable_wct:
@@ -329,7 +333,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
     ep_rewards, avg_delays, avg_rhos, ep_survival_steps = [], [], [], []
     ep_avg_q, ep_avg_td_error, ep_critic_loss = [], [], []  # 训练诊断指标
     shield_stats = {'steps': 0, 'interventions': 0, 'search_failures': 0,
-                    'deadline_proposals': 0, 'env_seconds': 0.0}
+                    'deadline_proposals': 0, 'env_seconds': 0.0,
+                    'association_seconds': 0.0}
     result_dir = os.path.join(os.path.dirname(__file__), "results", tag)
     os.makedirs(result_dir, exist_ok=True)
     t_start = time.time()
@@ -337,6 +342,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
     print(f"\n{'='*58}")
     print(f"  Algorithm: {algo_name.upper()}")
     print(f"  Episodes: {n_episodes}, Seed: {seed}, Tag: {tag}")
+    print(f"  Association: {association_method}")
     print(f"{'='*58}")
 
     for ep in range(n_episodes):
@@ -365,6 +371,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
                 info.get('shield_status') == 'no_feasible_candidate_found')
             shield_stats['deadline_proposals'] += int(
                 info.get('shield_original_failure') == 'edge_deadline')
+            shield_stats['association_seconds'] += float(
+                info.get('association_evaluation_seconds', 0.0))
             s_next_norm = normalizer.normalize(next_state)
 
             if needs_training:
@@ -420,14 +428,14 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             progress = dict(shield_stats, episode=ep + 1, episodes=n_episodes,
                             seed=seed, elapsed_seconds=elapsed,
                             recent_reward=float(r50), recent_rho=float(rho50))
-            with open(os.path.join(result_dir, f'{algo_name}_progress.json'),
+            with open(os.path.join(result_dir, f'{algo_name}{association_suffix}_progress.json'),
                       'w', encoding='utf-8') as handle:
                 json.dump(progress, handle, indent=2)
-            np.savez(os.path.join(result_dir, f'{algo_name}_progress.npz'),
+            np.savez(os.path.join(result_dir, f'{algo_name}{association_suffix}_progress.npz'),
                      ep_reward=ep_rewards, avg_delay=avg_delays,
                      avg_rho=avg_rhos, survival_steps=ep_survival_steps)
             if needs_training and (ep + 1) % 250 == 0:
-                agent.save(os.path.join(result_dir, f'{algo_name}_checkpoint.pth'))
+                agent.save(os.path.join(result_dir, f'{algo_name}{association_suffix}_checkpoint.pth'))
 
     total_time = time.time() - t_start
     print(f"  [{algo_name}] Done! {total_time:.0f}s ({total_time/60:.1f}min)")
@@ -462,7 +470,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
     result_dir = os.path.join(os.path.dirname(__file__), "results", tag)
     os.makedirs(result_dir, exist_ok=True)
 
-    save_name = f"{algo_name}.npz"
+    save_name = f"{algo_name}{association_suffix}.npz"
     save_path = os.path.join(result_dir, save_name)
     # 提取最后一次 Episode 的各类日志（为了画图）
     last_trajectory = np.array(env.trajectory_log)  # shape: (SLOT_NUM, K, 2)
@@ -482,13 +490,15 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
              last_trajectory=last_trajectory,
              last_battery=last_battery,
              total_time=total_time,
+             association_seconds=shield_stats['association_seconds'],
              n_episodes=n_episodes,
-             seed=seed)
+             seed=seed,
+             association_method=association_method)
     print(f"  Saved: {save_path}")
 
     # 保存模型
     if needs_training:
-        model_path = os.path.join(result_dir, f"{algo_name}.pth")
+        model_path = os.path.join(result_dir, f"{algo_name}{association_suffix}.pth")
         agent.save(model_path)
         print(f"  Model: {model_path}")
 
@@ -498,6 +508,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         'avg_delays': np.array(avg_delays),
         'avg_rhos': np.array(avg_rhos),
         'total_time': total_time,
+        'association_method': association_method,
+        'association_seconds': shield_stats['association_seconds'],
     }
 
 
@@ -518,6 +530,9 @@ def main():
                         help='启用热点轮转 (3阶段热/冷簇)')
     parser.add_argument('--nowct', action='store_true',
                         help='关闭 WCT 充电 (消融实验)')
+    parser.add_argument('--association-method', choices=('marginal', 'distance'),
+                        default='marginal',
+                        help='用户关联规则: SLRR 边际增益 (默认) 或距离优先基线')
     args = parser.parse_args()
 
     # 解析算法列表
@@ -545,7 +560,8 @@ def main():
     for i, algo in enumerate(algo_list):
         print(f"\n>>> [{i+1}/{len(algo_list)}] {algo.upper()}")
         res = run_experiment(algo, args.episodes, args.seed, args.tag,
-                             use_hotspot=args.hotspot, disable_wct=args.nowct)
+                             use_hotspot=args.hotspot, disable_wct=args.nowct,
+                             association_method=args.association_method)
         results.append(res)
 
     # 汇总

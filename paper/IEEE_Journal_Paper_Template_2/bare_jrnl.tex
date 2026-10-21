@@ -452,7 +452,7 @@ This research was funded by the National Natural Science Foundation of China (Gr
 % As a general rule, do not put math, special symbols or citations
 % in the abstract or keywords.
 \begin{abstract}
-Unmanned aerial vehicles (UAVs) equipped with mobile edge computing (MEC) servers can act as aerial edge nodes to provide on-demand computation offloading for ground Internet of Things devices, especially where terrestrial infrastructure is unavailable or costly. However, limited onboard energy, stochastic task arrivals, and time-varying demand hinder sustainable service provision. This paper investigates task-demand-aware scheduling in a wireless-powered multi-UAV MEC system in which UAVs serve ground users and replenish energy through wireless charging towers. We formulate a joint scheduling problem that coordinates UAV movement, task offloading, user association, computation allocation, and bandwidth allocation to maximize service latency reduction subject to long-term energy feasibility. We develop a \underline{D}emand-\underline{A}ttentive \underline{R}einforcement \underline{S}cheduling (DARS) framework based on deep reinforcement learning. The outer layer combines soft actor-critic with a task-demand attention encoder to learn long-term movement and offloading policies; the middle layer performs distance-priority feasible user association; and the inner layer uses convex optimization to derive square-root closed-form computation and bandwidth allocations. DARS further integrates dual-priority prioritized experience replay and $n$-step returns to emphasize transitions with large temporal-difference errors or reward variation caused by demand shifts and energy-critical states. Simulation results show that DARS outperforms representative deep
+Unmanned aerial vehicles (UAVs) equipped with mobile edge computing (MEC) servers can act as aerial edge nodes to provide on-demand computation offloading for ground Internet of Things devices, especially where terrestrial infrastructure is unavailable or costly. However, limited onboard energy, stochastic task arrivals, and time-varying demand hinder sustainable service provision. This paper investigates task-demand-aware scheduling in a wireless-powered multi-UAV MEC system in which UAVs serve ground users and replenish energy through wireless charging towers. We formulate a joint scheduling problem that coordinates UAV movement, task offloading, user association, computation allocation, and bandwidth allocation to maximize service latency reduction subject to long-term energy feasibility. We develop a \underline{D}emand-\underline{A}ttentive \underline{R}einforcement \underline{S}cheduling (DARS) framework based on deep reinforcement learning. The outer layer combines soft actor-critic with a task-demand attention encoder to learn long-term movement and offloading policies; the middle layer uses marginal-SLRR greedy user association with bounded move/swap improvement; and the inner layer uses convex optimization to derive square-root closed-form computation and bandwidth allocations. DARS further integrates dual-priority prioritized experience replay and $n$-step returns to emphasize transitions with large temporal-difference errors or reward variation caused by demand shifts and energy-critical states. Simulation results show that DARS outperforms representative deep
 reinforcement learning benchmarks in terms of cumulative reward, service
 latency reduction ratio, and average task completion latency under varying
 user densities and hotspot intensities.
@@ -511,7 +511,7 @@ Motivated by the success of Deep Reinforcement Learning (DRL) in solving high-di
 
 The main contributions of this paper are summarized as follows.
 \begin{itemize}
-\item  We develop DARS, a cascaded scheduling architecture that separates long-term UAV movement and task-offloading decisions, feasible user association, and instantaneous resource allocation. This decomposition reduces the continuous action dimension while retaining per-slot scheduling efficiency.
+\item  We develop DARS, a cascaded scheduling architecture that separates long-term UAV movement and task-offloading decisions, feasible user association, and instantaneous resource allocation. Its middle layer ranks feasible user--UAV associations by their marginal change in the current sum-SLRR objective, then applies bounded move/swap improvement while respecting coverage and capacity constraints.
 \item We design a task-demand attention encoder to construct a permutation-invariant global representation of the user-demand configuration. We further develop a dual-priority replay rule that combines temporal-difference error and reward variation with $n$-step returns, thereby emphasizing demand shifts and energy-critical transitions.
 \item We establish the strict convexity of the computation and bandwidth allocation subproblems and derive square-root closed-form solutions through the Karush-Kuhn-Tucker conditions. These solutions avoid including instantaneous resource variables in the reinforcement-learning action space.
 \item We evaluate the proposed framework through extensive simulations against
@@ -1195,15 +1195,18 @@ Fig.~\ref{fig:framework} provides an overview of the online scheduling and train
 Based on $h(t)$, the outer-layer SAC actor generates the high-level continuous
 action $a(t)$, including UAV movement decisions and the proposed offloading
 ratios $\hat{x}_i(t)$. After the UAV positions are updated, the middle layer
-constructs all feasible active-user--UAV pairs satisfying the coverage
-constraint. These pairs are sorted in ascending order of the three-dimensional
-distance $d_{i,k}(t)$. Starting from the nearest pair, an association is
-established only if the user has not yet been associated and the candidate
-UAV has served fewer than $N_{\max}$ users. This greedy procedure continues
-until no feasible pair remains, thereby obtaining the serving set
-$\mathcal{S}_k(t)$ of each UAV. For an associated user, its proposed
-offloading ratio is retained, whereas an unassociated user executes its task
-entirely locally. Accordingly, the effective offloading ratio is
+forms the ground set of active-user--UAV pairs that satisfy the coverage
+constraint and evaluates each candidate by its marginal change in the current
+sum-SLRR objective. It repeatedly adds the feasible pair with the largest
+positive marginal gain, subject to the one-UAV-per-user and per-UAV capacity
+constraints, until no positive-gain addition remains. A bounded local search
+then considers dropping an assigned user, moving an overlap user to another
+covering UAV, and swapping two overlap users between UAVs. An operation is
+accepted only when it is feasible and strictly increases the same objective.
+This produces the serving set $\mathcal{S}_k(t)$ of each UAV. For an
+associated user, its proposed offloading ratio is retained, whereas an
+unassociated user executes its task entirely locally. Accordingly, the
+effective offloading ratio is
 \begin{equation}\label{eq:effective_offloading}
 x_i(t)
 =
@@ -1229,6 +1232,39 @@ the resource scheduling efficient and interpretable.
 
 
 % ============================================================
+
+\subsubsection{Marginal-Gain User Association}\label{subsubsec:association}
+For fixed UAV locations and Actor-proposed offloading ratios, let
+$\mathcal{E}(t)$ contain the active-user--UAV pairs that satisfy the coverage
+constraint. The feasible association sets are the intersection of two
+partition matroids: one limits each user to at most one UAV, and the other
+limits each UAV to at most $N_{\max}$ users. Define
+\begin{equation}\label{eq:association_objective}
+  F(\bm{A}(t)) = \sum_{i\in\mathcal{M}} \rho_i(t),
+  \qquad
+  V_k(\mathcal{S}_k(t)) =
+  \sum_{i\in\mathcal{S}_k(t)} \rho_i(t),
+\end{equation}
+where each $\rho_i(t)$ is evaluated using the same offloading ratios and the
+existing CPU and bandwidth allocation rules used by the environment. For a
+feasible pair $(i,k)$, its marginal gain is
+\begin{equation}\label{eq:association_marginal}
+  \Delta_{i,k}(\bm{A}) =
+  F\bigl(\bm{A}\cup\{(i,k)\}\bigr)-F(\bm{A}).
+\end{equation}
+The greedy phase adds the available pair with the largest positive
+$\Delta_{i,k}$. The local-search phase uses the same objective and accepts
+only feasible, strictly improving moves or swaps; it therefore never lowers
+the greedy solution's objective. Battery and deadline feasibility continue
+to be checked by the environment.
+Since the implemented set objective has not been proved submodular, we do not
+claim a $1/3$ approximation guarantee. The association method is treated as
+a heuristic and is evaluated against distance-priority association and
+small-instance exhaustive search. With $E$ feasible pairs, at most $r$ greedy
+additions, and $L$ local-search passes, the cached subset-value implementation
+has worst-case complexity $O(rEM+L(M^2+MK)M).
+
+
 \subsection{Inner-Layer Closed-Form Resource Allocation}\label{subsec:closed_form}
 The motivation for separating resource allocation from the DRL action space
 is twofold. On the one hand, CPU frequency and bandwidth allocation are
@@ -1795,7 +1831,7 @@ with $\zeta\in(0,1)$ the soft-update coefficient.
     \STATE Sample $\bm{a}(t) \sim
       \pi_\theta(\cdot|\bm{h}(t))$;
     \STATE Execute $\bm{a}(t)$ and update UAV positions;
-    \STATE $\mathcal{S}_k(t) \leftarrow$ greedy user association;
+    \STATE $\mathcal{S}_k(t) \leftarrow$ marginal-SLRR greedy association with bounded move/swap improvement;
     \STATE $\{f_{i,k}^*, b_{i,k}^*\} \leftarrow$
       closed-form resource allocation by~\eqref{eq:opt_freq} and~\eqref{eq:bandwidth_opt};
     \STATE Observe reward $r_t$, next state $\bm{s}(t+1)$, and terminal flag $d_{\mathrm{term}}(t+1)$;
@@ -1926,11 +1962,9 @@ and future recharging necessity.
 % attention-enhanced representation $\bm{h}(t)$
 % via the reparameterization trick;
 % %>> [FIXED] Hardcoded (18f) and (18e) replaced with \eqref{}.
-% (ii) the middle layer performs distance-priority greedy user association
-% to obtain $\mathcal{S}_k(t)$, satisfying coverage
-% constraint~\eqref{prob:P1f}
-% and capacity constraint~\eqref{prob:P1e}
-% with complexity $O(MK\log(MK))$;
+% (ii) the middle layer performs marginal-SLRR greedy association followed
+% by bounded move/swap improvement to obtain $\mathcal{S}_k(t)$, satisfying
+% coverage constraint~\eqref{prob:P1f} and capacity constraint~\eqref{prob:P1e};
 % (iii) the inner layer computes closed-form resource allocation
 % via~\eqref{eq:opt_freq} and~\eqref{eq:opt_bw}
 % with complexity $O(M)$.
@@ -1946,7 +1980,8 @@ and future recharging necessity.
 % The per-slot computational complexity consists of four components:
 % (i) MHA encoding: $O(M^2 d_e)$;
 % (ii) Actor forward pass: $O((6K+1+d_e) \cdot d_h)$;
-% (iii) greedy user association: $O(MK \log(MK))$;
+% (iii) marginal-gain association: each subset-value evaluation costs $O(M)$,
+% with greedy and bounded local-search candidate counts reported empirically;
 % (iv) closed-form resource allocation: $O(M)$.
 % During training, the dominant cost arises from Twin Critic backpropagation
 % and PER SumTree updates ($O(\log|\mathcal{B}|)$ per sample).
@@ -2135,6 +2170,46 @@ cumulative SLRR; (2) \emph{Average SLRR} $\rho$; and (3) \emph{Average Delay}.
 All baselines share the same inner-layer closed-form allocation in (\ref{eq:opt_freq}) and (\ref{eq:bandwidth_opt}),
 so that the comparison isolates the effect of the outer-layer policy
 representation and the replay mechanism.
+
+\subsection{User Association Evaluation}
+We separately evaluate the association layer on 50 independently generated
+snapshots with $K=2$, $M=14$, and $N_{\max}=5$, using the channel and current
+resource-allocation models of the simulator. For each snapshot, the Actor
+offloading ratios are sampled once and kept fixed across methods. Each user
+can be assigned to UAV 1, UAV 2, or remain unassociated, giving
+$3^{14}=4{,}782{,}969$ possible assignments before feasibility pruning. The
+exact reference is computed by precomputing each UAV's values for all
+$2^{14}$ user subsets and combining disjoint subsets with a subset dynamic
+program. Table~\ref{tab:association_quality} reports each method's objective
+as a fraction of this exact reference and its mean association time.
+
+\begin{table}[t]
+\centering
+\caption{Association objective and computation time on 50 small instances.}
+\label{tab:association_quality}
+\begin{tabular}{lccc}
+\hline
+Method & Mean / worst ratio & Mean time (ms) \\
+\hline
+Distance-priority greedy & 91.88\% / 80.21\% & 0.056 \\
+Marginal-gain greedy & 99.12\% / 92.26\% & 1.615 \\
+Marginal gain + 2 move/swap passes & 99.37\% / 92.26\% & 1.998 \\
+Exact subset-DP reference & 100\% / 100\% & 14.942 \\
+\hline
+\end{tabular}
+\end{table}
+
+The timing measurements were obtained on Windows 11 with an Intel Core
+i9-14900HX processor and Python 3.13.9. The subset-value precomputation takes
+14.530~ms on average, while combining the values takes 0.412~ms. In a separate
+dense-overlap stress case with all
+$M=30$ users active, marginal greedy with two move/swap passes takes 17.267~ms
+on average (23.057~ms maximum over 100 repetitions). These timings are
+implementation measurements for the stated simulator setup. The local search
+improves the sampled mean objective from 99.12\% to 99.37\% of the exact
+reference; the empirical worst case remains 92.26\%. Since the set objective
+used by the implemented allocator has not been proved submodular, these
+results are empirical and do not imply a worst-case approximation guarantee.
 
 
 

@@ -165,7 +165,7 @@ $\mathbf{h}(t)$ 被同时输入 Actor 和 Twin Critic 网络（两层全连接�
 
 **(i) 外层 DRL 决策。** Actor 根据注意力增强表示 $\mathbf{h}(t)$，通过 reparameterization trick 采样输出 UAV 运动决策 $(c_k, s_k, v_k)$ 和用户卸载比例 $x_i$。
 
-**(ii) 中层用户关联。** 根据 UAV 当前位置，按三维欧氏距离升序执行贪心分配，满足覆盖约束 C10 和容量约束 C6，得到每架 UAV 的服务用户集合 $\mathcal{S}_k(t)$。
+**(ii) 中层用户关联。** 先按覆盖约束 C10 构造可行用户-UAV 对，再用当前分配规则计算候选对对 SLRR 总和的边际增益，逐步加入收益最大的正增益关联。随后在重叠覆盖用户上做有界 move/swap 改进，并允许移除或重新接纳用户；每个操作都满足容量约束 C6、覆盖约束 C10 和用户唯一关联约束，且只接受 SLRR 总和增加的操作。距离优先关联保留为基线。当前目标没有子模性证明，因此不报告 $1/3$ 近似保证。
 
 **(iii) 下层闭式资源分配。** 对于给定的轨迹、关联和卸载比例，计算资源和带宽资源不再由 DRL 直接输出，而是采用第 IV-A 和 IV-B 节推导的闭式解：
 
@@ -219,7 +219,7 @@ $$
 | 5 | &emsp;&emsp;**（注意力编码）** 分解 $\mathbf{s}(t) \to (\mathbf{z}_{\text{UAV}}, \mathbf{Z}_{\text{UE}})$；MHA 聚合得 $\mathbf{h}(t)$（式 34-39） |
 | 6 | &emsp;&emsp;**（外层 DRL）** 若预热阶段则随机采样，否则 $\mathbf{a}(t) \sim \pi_\theta(\cdot|\mathbf{h}(t))$ |
 | 7 | &emsp;&emsp;映射动作至物理量；更新 UAV 位置（式 1-2） |
-| 8 | &emsp;&emsp;**（中层关联）** 距离优先贪心分配，得 $\mathcal{S}_k(t)$ |
+| 8 | &emsp;&emsp;**（中层关联）** 按最大正 SLRR 边际增益贪心建立关联，再执行有界 move/swap 改进，得 $\mathcal{S}_k(t)$ |
 | 9 | &emsp;&emsp;**（下层 CVX）** 闭式解计算最优频率 $f_{i,k}^*$ 和带宽 $b_{i,k}^*$（式 40） |
 | 10 | &emsp;&emsp;计算延迟、充电能量、能耗；更新电池；计算奖励 $r(t)$ |
 | 11 | &emsp;&emsp;**if** $\exists k: B_k(t+1) < 0$ **then** done $\leftarrow$ True |
@@ -229,4 +229,4 @@ $$
 | 15 | &emsp;**end for** |
 | 16 | **end for**；**return** $\pi_\theta$ |
 
-**复杂度分析。** 每时隙计算复杂度由四部分组成：(i) Task-Demand Attention 的 MHA 编码为 $O(M^2 d_e)$；(ii) Actor 前向推理为 $O((6K+1+d_e) \cdot d_h + d_h \cdot d_a)$；(iii) 贪心关联为 $O(MK\log(MK))$；(iv) 闭式资源分配为 $O(M)$。训练阶段的主要开销来自 Twin Critic 反向传播和 PER 的 SumTree 更新（$O(\log|\mathcal{B}|)$ 每样本）。推理部署时单步决策延迟在毫秒级。
+**复杂度分析。** 记覆盖内候选对数为 $E\le MK$，贪心加入次数为 $r\le\min(M,KN_{\max})$，局部改进轮数上限为 $L$。每个 UAV 子集的效用评估至多遍历 $M$ 个用户，且相同子集结果会缓存；因此关联的保守最坏复杂度为 $O(rEM+L(M^2+MK)M)$。实际开销取决于覆盖重叠度、候选数和局部搜索轮数，应通过运行时间测量报告。其余每时隙开销包括 MHA 编码 $O(M^2d_e)$、Actor 前向推理和当前闭式资源分配 $O(M)$。训练阶段还需 Twin Critic 反向传播与 PER 的 SumTree 更新。
