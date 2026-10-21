@@ -1,0 +1,34 @@
+cd d:\Codes\UAV-DDPG-main\DDPG
+
+# 训练单个算法（统一入口）
+python train_unified.py --algo per_ddpg_cvx --episodes 3000 --tag obj_v24
+
+# 可选算法（--algo）
+# per_ddpg_cvx, ddpg_cvx, per_ddpg, ddpg, ddpg_vanilla, ddpg_vanilla_cvx
+# sac_cvx, ppo_cvx, maddpg_cvx, greedy_cvx, random, all_local, all_offload, half_offload
+
+# all_offload 基线验证
+python train_unified.py --algo all_offload --episodes 500 --tag check_offload
+
+# 画训练曲线/柱状图
+python plot_results.py --tag obj_v25
+
+# 画轨迹图（推荐显示初始用户分布）
+python plot_trajectory.py --tag obj_v25 --algo per_ddpg_cvx --ue_snapshot initial --seed 42
+
+# ue_snapshot 可选：initial / final
+
+# 灵敏度实验
+python run_sensitivity.py --episodes 1000
+
+# 灵敏度冒烟测试
+python run_sensitivity.py --smoke_test
+
+# 仅用现有 npz 出图
+python run_sensitivity.py --plot_only
+
+# DDPG vs PER-DDPG 对比实验
+python compare_experiment.py
+
+# 一键全跑（先在 run_all.py 里设置 TAG）
+python run_all.py

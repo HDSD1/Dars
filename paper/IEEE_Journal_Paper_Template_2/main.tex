@@ -1,0 +1,98 @@
+\documentclass[10pt]{letter}
+\usepackage{url}
+\usepackage[letterpaper]{geometry}
+
+\oddsidemargin=.0in
+\evensidemargin=.0in
+\textwidth=5.9in
+\topmargin=-1in
+\textheight=10in
+%\oddsidemargin=.2in
+%\evensidemargin=.2in
+%\textwidth=5.9in
+%\topmargin=-.5in
+%\textheight=9in
+
+
+\name{Xiaoyu Wang\\
+School of Computer Science and Technology\\
+Soochow University\\
+Suzhou, Jiangsu 215006, China\\
+xywang21@suda.edu.cn}
+
+\signature{Xiaoyu Wang\\
+Corresponding Author}
+
+\date{\today}
+
+\begin{document}
+
+
+% BODY OF ALL SUBLIMINAL LETTERS *******************************************
+
+\def \body
+{
+We would like to submit our manuscript entitled``DARS: Task Demand-Attentive Reinforcement Scheduling for Wireless-Powered
+Multi-UAV Mobile Edge Computing'' to \textit{IEEE Internet of Things Journal} for consideration of possible publication.
+This paper is the result of our latest research work. It hasnot been published or accepted for publication before this submission. 
+All authors have approvedthe manuscript and agree with its submission to \textit{IEEE Internet of Things Journal}. 
+
+
+This manuscript investigates sustainable computation offloading for IoT
+devices in a wireless-powered multi-UAV mobile edge computing system. The
+problem is challenging because UAV movement, user association, task offloading,
+computation and bandwidth allocation, and wireless charging are tightly
+coupled, while task arrivals and spatial demand hotspots vary over time. We
+therefore develop DARS, a demand-attentive reinforcement scheduling framework
+that coordinates service and energy replenishment to reduce task completion
+latency while maintaining long-term UAV operation.
+
+The main contributions of this work are summarized as follows:
+\begin{enumerate}
+\item We introduce DARS as a cascaded scheduler that assigns long-horizon UAV
+mobility and offloading control, feasibility-aware user association, and
+instantaneous resource assignment to separate decision stages. This structure
+keeps the learned continuous action space compact while preserving efficient
+per-slot coordination.
+
+\item We enhance policy learning with a task-demand attention encoder that
+summarizes the user-demand configuration independently of user ordering. A
+dual-priority replay strategy ranks samples using both value-estimation error
+and reward variation and, together with multi-step returns, focuses training on
+abrupt demand changes and energy-critical experiences.
+
+\item For the per-slot computation and bandwidth subproblems, we prove strict
+convexity and obtain square-root allocation rules from the KKT conditions.
+These analytical solutions remove high-dimensional instantaneous resource
+variables from the reinforcement-learning action space.
+
+\item Comprehensive comparisons with representative DRL baselines, including
+ESAC-PER, SAC, TD3, and MADDPG, show consistent gains in cumulative reward,
+SLRR, and task completion latency across different user densities and hotspot
+intensities. Ablation studies further verify the performance and stability
+benefits of the attention encoder and dual-priority replay strategy.
+\end{enumerate}
+
+The topic is well aligned with the scope of the \textit{IEEE Internet of Things
+Journal}, as it addresses UAV-assisted edge intelligence, computation
+offloading for IoT devices, wireless energy replenishment, and adaptive
+resource management in dynamic IoT environments.
+
+This manuscript is original, has not been published previously, and is not
+under consideration for publication elsewhere. All authors have approved the
+manuscript and consent to its submission. The authors declare no conflict of
+interest regarding this work.
+
+Thank you for your time and consideration. Please contact me if any additional
+information is required.
+}
+
+% LETTERS BEGIN HERE ******************************************************
+
+\begin{letter}{Editorial Board\\
+               IEEE Internet of Things Journal}
+\opening{Dear Editor-in-Chief:} \body
+\closing{Sincerely,}
+\end{letter}
+
+\end{document}
