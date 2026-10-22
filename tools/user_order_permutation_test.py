@@ -1,0 +1,235 @@
+"""Permutation-equivariance test for DARS per-user offloading actions.
+
+The test keeps the physical UAV state fixed, permutes each user's complete
+feature tuple (location, task size, active flag), and checks whether the
+policy's offloading outputs undergo the same permutation. The actor is loaded
+from a trained checkpoint so the result describes the learned policy as well
+as its architecture.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from config import ACTION_DIM, K, M, STATE_DIM
+from DARS import SACActor, decompose_state
+from UAV_env import UAVEnv
+from state_normalization import StateNormalization
+
+
+def permute_user_order(state: np.ndarray, permutation: np.ndarray) -> np.ndarray:
+    """Reorder location, task, and activity blocks using new->old indices."""
+    result = np.asarray(state, dtype=np.float64).copy()
+    location_start = 3 * K
+    location_end = location_start + 2 * M
+    task_start = location_end
+    task_end = task_start + M
+    active_start = task_end
+    active_end = active_start + M
+
+    result[location_start:location_end] = (
+        state[location_start:location_end].reshape(M, 2)[permutation].reshape(-1)
+    )
+    result[task_start:task_end] = state[task_start:task_end][permutation]
+    result[active_start:active_end] = state[active_start:active_end][permutation]
+    return result
+
+
+def load_actor(checkpoint_path: Path, device: torch.device) -> SACActor:
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    if not isinstance(checkpoint, dict) or "actor" not in checkpoint:
+        raise ValueError("Checkpoint must contain an 'actor' state dictionary")
+
+    actor = SACActor(STATE_DIM, ACTION_DIM).to(device)
+    # Strict loading prevents an incompatible action head or model version from
+    # silently being evaluated as if it were the paper-version policy.
+    actor.load_state_dict(checkpoint["actor"], strict=True)
+    actor.eval()
+    return actor
+
+
+def sample_states(sample_count: int, seed: int) -> np.ndarray:
+    env = UAVEnv(use_cvx_alloc=True, use_hotspot=True)
+    states = []
+    for sample_index in range(sample_count):
+        np.random.seed(seed + sample_index)
+        state = env.reset()
+        states.append(np.asarray(state, dtype=np.float64))
+    return np.stack(states)
+
+
+def run_test(args: argparse.Namespace) -> dict:
+    if ACTION_DIM != 3 * K + M:
+        raise ValueError(
+            f"Expected 3K+M action dimensions for per-user offloading, got {ACTION_DIM}"
+        )
+    if args.samples < 1 or args.permutations < 1:
+        raise ValueError("samples and permutations must both be positive")
+
+    device = torch.device(args.device)
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested, but no GPU is visible to this process")
+
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if device.type == "cuda":
+        torch.cuda.manual_seed_all(args.seed)
+
+    checkpoint_path = args.checkpoint.resolve()
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(checkpoint_path)
+    actor = load_actor(checkpoint_path, device)
+
+    raw_states = sample_states(args.samples, args.seed)
+    normalizer = StateNormalization()
+    base_states = np.stack([normalizer.normalize(state) for state in raw_states])
+
+    rng = np.random.default_rng(args.seed + 1)
+    permuted_states = []
+    sample_rows = []
+    permutations = []
+    for sample_index, state in enumerate(raw_states):
+        for _ in range(args.permutations):
+            permutation = rng.permutation(M)
+            permuted_states.append(
+                normalizer.normalize(permute_user_order(state, permutation))
+            )
+            sample_rows.append(sample_index)
+            permutations.append(permutation)
+
+    base_tensor = torch.as_tensor(base_states, dtype=torch.float32, device=device)
+    perm_tensor = torch.as_tensor(
+        np.asarray(permuted_states), dtype=torch.float32, device=device
+    )
+    sample_rows_array = np.asarray(sample_rows, dtype=np.int64)
+    permutations_array = np.asarray(permutations, dtype=np.int64)
+
+    with torch.inference_mode():
+        base_actions = actor.deterministic(base_tensor).cpu().numpy()
+        permuted_actions = actor.deterministic(perm_tensor).cpu().numpy()
+
+        _, base_user_features = decompose_state(base_tensor)
+        _, perm_user_features = decompose_state(perm_tensor)
+        base_user_embeddings = actor.user_attn(base_user_features).cpu().numpy()
+        perm_user_embeddings = actor.user_attn(perm_user_features).cpu().numpy()
+
+    base_rho = (base_actions[:, 3 * K:] + 1.0) / 2.0
+    permuted_rho = (permuted_actions[:, 3 * K:] + 1.0) / 2.0
+    expected_rho = base_rho[sample_rows_array[:, None], permutations_array]
+
+    # Map each permuted output back to its original user identity before
+    # comparing it with that user's unpermuted decision.
+    inverse_permutations = np.argsort(permutations_array, axis=1)
+    aligned_rho = np.take_along_axis(
+        permuted_rho, inverse_permutations, axis=1
+    )
+    aligned_error = np.abs(aligned_rho - base_rho[sample_rows_array])
+    equivariance_error = np.abs(permuted_rho - expected_rho)
+    same_index_error = np.abs(permuted_rho - base_rho[sample_rows_array])
+
+    movement_error = np.abs(
+        permuted_actions[:, : 3 * K] - base_actions[sample_rows_array, : 3 * K]
+    )
+    embedding_error = np.abs(
+        perm_user_embeddings - base_user_embeddings[sample_rows_array]
+    )
+    per_user = []
+    for user_index in range(M):
+        per_user.append(
+            {
+                "user_index": user_index,
+                "baseline_mean_rho": float(np.mean(base_rho[:, user_index])),
+                "permuted_aligned_mean_rho": float(np.mean(aligned_rho[:, user_index])),
+                "mean_absolute_alignment_error": float(
+                    np.mean(aligned_error[:, user_index])
+                ),
+            }
+        )
+
+    action_spread = float(np.mean(np.std(base_rho, axis=1)))
+    equivariance_mae = float(np.mean(equivariance_error))
+    max_equivariance_error = float(np.max(equivariance_error))
+    if action_spread <= args.uniform_tolerance:
+        conclusion = "UNINFORMATIVE_UNIFORM_OUTPUT"
+        passed = False
+    else:
+        passed = equivariance_mae <= args.tolerance
+        conclusion = "PASS" if passed else "FAIL"
+
+    return {
+        "experiment": "user_order_permutation_equivariance",
+        "checkpoint": str(checkpoint_path),
+        "checkpoint_sha256": hashlib.sha256(checkpoint_path.read_bytes()).hexdigest(),
+        "seed": args.seed,
+        "samples": args.samples,
+        "permutations_per_sample": args.permutations,
+        "total_permutations": len(permutations_array),
+        "device": str(device),
+        "gpu_name": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
+        "action_dim": ACTION_DIM,
+        "uav_movement_dim": 3 * K,
+        "user_offload_dim": M,
+        "metrics": {
+            "pooled_user_embedding_max_abs_difference": float(np.max(embedding_error)),
+            "movement_action_mean_abs_difference": float(np.mean(movement_error)),
+            "offload_equivariance_mae_rho": equivariance_mae,
+            "offload_equivariance_max_abs_error_rho": max_equivariance_error,
+            "offload_same_index_mae_rho": float(np.mean(same_index_error)),
+            "mean_between_user_rho_std": action_spread,
+            "fraction_user_actions_within_tolerance": float(
+                np.mean(equivariance_error <= args.tolerance)
+            ),
+        },
+        "tolerance_rho": args.tolerance,
+        "uniform_output_tolerance": args.uniform_tolerance,
+        "passed": passed,
+        "conclusion": conclusion,
+        "interpretation": (
+            "A pass requires the offloading decision to follow the same user when user "
+            "feature tuples are reordered. Nearly uniform outputs are reported as "
+            "uninformative rather than as evidence of user-specific association."
+        ),
+        "per_user": per_user,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Test permutation consistency of trained DARS offloading actions"
+    )
+    parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--samples", type=int, default=32)
+    parser.add_argument("--permutations", type=int, default=100)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--tolerance", type=float, default=1e-5)
+    parser.add_argument("--uniform-tolerance", type=float, default=1e-4)
+    parser.add_argument("--output", type=Path, default=Path("user_order_permutation_report.json"))
+    args = parser.parse_args()
+
+    report = run_test(args)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print(json.dumps({
+        "checkpoint": report["checkpoint"],
+        "device": report["device"],
+        "gpu_name": report["gpu_name"],
+        "metrics": report["metrics"],
+        "conclusion": report["conclusion"],
+        "report": str(args.output.resolve()),
+    }, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
