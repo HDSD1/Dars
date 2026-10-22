@@ -129,16 +129,15 @@ class UserAttention(nn.Module):
                 nn.init.xavier_uniform_(layer.weight)
                 nn.init.zeros_(layer.bias)
 
-    def forward(self, user_features, return_tokens=False):
+    def forward(self, user_features):
         """
         Args:   user_features: (batch, M, 4)
-        Returns: 默认返回 (batch, embed_dim) 全局表示；
-            return_tokens=True 时返回 (batch, M, embed_dim) 逐用户表示。
+        Returns: (batch, embed_dim) 聚合后的用户表示
         """
         x = self.user_proj(user_features)
         attn_out, _ = self.mha(x, x, x)
         attn_out = self.ln(attn_out + x)
-        return attn_out if return_tokens else attn_out.mean(dim=1)
+        return attn_out.mean(dim=1)
 
 
 # ==================================================================
@@ -357,20 +356,19 @@ class PERBufferSAC:
 class SACActor(nn.Module):
     """★ V4: Attention-Enhanced Actor.
 
-    全局上下文用于输出 UAV 飞行动作；卸载比例和资源分配由环境内层求解。
+    将用户特征通过 Multi-Head Self-Attention 聚合后,
+    与 UAV 特征拼接, 送入策略网络.
     """
     def __init__(self, s_dim, a_dim):
         super().__init__()
-        if a_dim != 3 * K:
-            raise ValueError("SACActor requires a 3K movement-only action")
         self.user_attn = UserAttention()
         combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM
         self.fc1 = nn.Linear(combined_dim, HIDDEN_DIM_1)
         self.ln1 = nn.LayerNorm(HIDDEN_DIM_1)
         self.fc2 = nn.Linear(HIDDEN_DIM_1, HIDDEN_DIM_2)
         self.ln2 = nn.LayerNorm(HIDDEN_DIM_2)
-        self.mean_head = nn.Linear(HIDDEN_DIM_2, 3 * K)
-        self.log_std_head = nn.Linear(HIDDEN_DIM_2, 3 * K)
+        self.mean_head = nn.Linear(HIDDEN_DIM_2, a_dim)
+        self.log_std_head = nn.Linear(HIDDEN_DIM_2, a_dim)
         self._init_weights()
 
     def _init_weights(self):
@@ -383,16 +381,15 @@ class SACActor(nn.Module):
 
     def _encode(self, state):
         uav_feat, user_feat = decompose_state(state)
-        user_tokens = self.user_attn(user_feat, return_tokens=True)
-        return torch.cat([uav_feat, user_tokens.mean(dim=1)], dim=1), user_tokens
+        user_embed = self.user_attn(user_feat)
+        return torch.cat([uav_feat, user_embed], dim=1)
 
     def forward(self, state):
-        x, _ = self._encode(state)
+        x = self._encode(state)
         x = torch.relu(self.ln1(self.fc1(x)))
         x = torch.relu(self.ln2(self.fc2(x)))
         mean = self.mean_head(x)
-        log_std = self.log_std_head(x)
-        log_std = log_std.clamp(LOG_SIG_MIN, LOG_SIG_MAX)
+        log_std = self.log_std_head(x).clamp(LOG_SIG_MIN, LOG_SIG_MAX)
         return mean, log_std
 
     def sample(self, state):
@@ -421,10 +418,8 @@ class TwinCritic(nn.Module):
     """
     def __init__(self, s_dim, a_dim):
         super().__init__()
-        if a_dim != 3 * K:
-            raise ValueError("TwinCritic requires a 3K movement-only action")
         self.user_attn = UserAttention()
-        combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM + 3 * K
+        combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM + a_dim
         # Q1
         self.fc1_1 = nn.Linear(combined_dim, HIDDEN_DIM_1)
         self.ln1_1 = nn.LayerNorm(HIDDEN_DIM_1)
@@ -449,9 +444,8 @@ class TwinCritic(nn.Module):
 
     def forward(self, state, action):
         uav_feat, user_feat = decompose_state(state)
-        user_tokens = self.user_attn(user_feat, return_tokens=True)
-        x = torch.cat([uav_feat, user_tokens.mean(dim=1),
-                       action], dim=1)
+        user_embed = self.user_attn(user_feat)
+        x = torch.cat([uav_feat, user_embed, action], dim=1)
         q1 = torch.relu(self.ln1_1(self.fc1_1(x)))
         q1 = torch.relu(self.ln1_2(self.fc1_2(q1)))
         q1 = self.fc1_3(q1)

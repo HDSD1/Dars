@@ -126,7 +126,7 @@ P_MAX_WCT = 200.0           # 单个 WCT 最大输出功率 (★ V5: 500→200)
 # ============================================================
 # 10. 动作/状态维度
 # ============================================================
-ACTION_DIM = 3 * K                       # 3K (cos,sin,speed); offloading is optimized in the environment
+ACTION_DIM = 3 * K + M                   # 3K (cos,sin,speed) + M (offload)
 ACTION_BOUND = [-1.0, 1.0]
 STATE_DIM = K + 2*K + 2*M + M + M + 3*K + 1   # 6K + 4M + 1 (含 active_mask + WCT 距离)
 

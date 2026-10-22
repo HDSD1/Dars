@@ -14,6 +14,7 @@
 %% http://www.ctan.org/pkg/ieeetran
 %% and
 %% http://www.ieee.org/
+
 %%*************************************************************************
 %% Legal Notice:
 %% This code is offered as-is without any warranty either expressed or
@@ -451,10 +452,10 @@ This research was funded by the National Natural Science Foundation of China (Gr
 % As a general rule, do not put math, special symbols or citations
 % in the abstract or keywords.
 \begin{abstract}
-Unmanned aerial vehicles (UAVs) equipped with mobile edge computing (MEC) servers can act as aerial edge nodes to provide on-demand computation offloading for ground Internet of Things devices, especially where terrestrial infrastructure is unavailable or costly. However, limited onboard energy, stochastic task arrivals, and time-varying demand hinder sustainable service provision. This paper investigates task-demand-aware scheduling in a wireless-powered multi-UAV MEC system in which UAVs serve ground users and replenish energy through wireless charging towers. We formulate a joint scheduling problem that coordinates UAV movement, task offloading, user association, computation allocation, and bandwidth allocation to maximize service latency reduction subject to long-term energy feasibility. We develop a \underline{D}emand-\underline{A}ttentive \underline{R}einforcement \underline{S}cheduling (DARS) framework based on deep reinforcement learning. The outer layer combines soft actor-critic with a task-demand attention encoder to learn long-term UAV movement; the middle layer uses marginal-SLRR greedy user association with bounded move/swap improvement; and the inner layer jointly optimizes offloading ratios, CPU frequencies, and bandwidth through a concave program solved by an active-set CPU multiplier and bandwidth-multiplier bisection. DARS further integrates dual-priority prioritized experience replay and $n$-step returns to emphasize transitions with large temporal-difference errors or reward variation caused by demand shifts and energy-critical states. Previously collected simulation results show that DARS outperforms representative deep
+Unmanned aerial vehicles (UAVs) equipped with mobile edge computing (MEC) servers can act as aerial edge nodes to provide on-demand computation offloading for ground Internet of Things devices, especially where terrestrial infrastructure is unavailable or costly. However, limited onboard energy, stochastic task arrivals, and time-varying demand hinder sustainable service provision. This paper investigates task-demand-aware scheduling in a wireless-powered multi-UAV MEC system in which UAVs serve ground users and replenish energy through wireless charging towers. We formulate a joint scheduling problem that coordinates UAV movement, task offloading, user association, computation allocation, and bandwidth allocation to maximize service latency reduction subject to long-term energy feasibility. We develop a \underline{D}emand-\underline{A}ttentive \underline{R}einforcement \underline{S}cheduling (DARS) framework based on deep reinforcement learning. The outer layer combines soft actor-critic with a task-demand attention encoder to learn long-term movement and offloading policies; the middle layer performs distance-priority feasible user association; and the inner layer uses convex optimization to derive square-root closed-form computation and bandwidth allocations. DARS further integrates dual-priority prioritized experience replay and $n$-step returns to emphasize transitions with large temporal-difference errors or reward variation caused by demand shifts and energy-critical states. Simulation results show that DARS outperforms representative deep
 reinforcement learning benchmarks in terms of cumulative reward, service
 latency reduction ratio, and average task completion latency under varying
-user densities and hotspot intensities. These results use the previous policy action and allocation formulation and require reevaluation for the updated inner solver.
+user densities and hotspot intensities.
 \end{abstract}
 % Note that keywords are not normally used for peerreview papers.
 \begin{IEEEkeywords}
@@ -504,15 +505,15 @@ ning2025joint_data}, where Wireless Charging Towers (WCTs) deployed on rooftops 
 Therefore, this paper investigates the problem of task demand-aware reinforcement scheduling for wireless-powered multi-UAV MEC, aiming to jointly optimize UAV movement, task offloading, user association, and resource allocation to reduce user service latency while sustaining long-term UAV operation.
 
 
-There are three main challenges in this problem. First, the introduction of WCTs creates a service-charging tradeoff~\cite{song2024energy}. UAVs need to fly close to active users to improve computation offloading efficiency, while also approaching WCTs before energy depletion to maintain continuous service. Second, user task demands are spatially uneven and time-varying. Due to stochastic task arrivals and hotspot migration~\cite{wang2021dynamic_imitation}, UAVs must dynamically adjust their trajectories and offloading decisions according to the changing demand distribution. Third, the system involves heterogeneous and tightly coupled decisions~\cite{wang2024joint}. UAV trajectory planning is a long-term continuous-control decision, while per-slot offloading is solved jointly with user association, computation, and bandwidth allocation. These coupled factors make the original optimization problem difficult to solve directly.
+There are three main challenges in this problem. First, the introduction of WCTs creates a service-charging tradeoff~\cite{song2024energy}. UAVs need to fly close to active users to improve computation offloading efficiency, while also approaching WCTs before energy depletion to maintain continuous service. Second, user task demands are spatially uneven and time-varying. Due to stochastic task arrivals and hotspot migration~\cite{wang2021dynamic_imitation}, UAVs must dynamically adjust their trajectories and offloading decisions according to the changing demand distribution. Third, the system involves heterogeneous and tightly coupled decisions~\cite{wang2024joint}. UAV trajectory planning and task offloading are long-term continuous-control decisions, user association is a discrete matching decision, and computation and bandwidth allocation need to be efficiently determined within each time slot. These coupled factors make the original optimization problem difficult to solve directly.
 
-Motivated by the success of Deep Reinforcement Learning (DRL) in solving high-dimensional and dynamic decision-making problems, we develop a DRL-based scheduling framework for wireless-powered multi-UAV MEC. Specifically, we propose a Demand-Attentive Reinforcement Scheduling framework, called DARS, which combines Soft Actor-Critic (SAC), Prioritized Experience Replay (PER), task-demand attention, and a joint inner-layer optimizer. The SAC-based controller is adopted to improve exploration in continuous UAV movement action space~\cite{haarnoja2018soft}, while PER is introduced to enhance the learning of rare but informative transitions such as energy-critical states and sudden demand changes~\cite{schaul2016per}. Furthermore, a task-demand attention mechanism is designed to extract demand-aware user representations, and a joint solver determines offloading ratios and resource allocations within each time slot.
+Motivated by the success of Deep Reinforcement Learning (DRL) in solving high-dimensional and dynamic decision-making problems, we develop a DRL-based scheduling framework for wireless-powered multi-UAV MEC. Specifically, we propose a Demand-Attentive Reinforcement Scheduling framework, called DARS, which combines Soft Actor-Critic (SAC), Prioritized Experience Replay (PER), task-demand attention, and closed-form resource allocation. The SAC-based controller is adopted to improve exploration in continuous UAV movement and offloading action spaces~\cite{haarnoja2018soft}, while PER is introduced to enhance the learning of rare but informative transitions such as energy-critical states and sudden demand changes~\cite{schaul2016per}. Furthermore, a task-demand attention mechanism is designed to extract demand-aware user representations, and closed-form resource allocation is derived to reduce the computational burden within each time slot.
 
 The main contributions of this paper are summarized as follows.
 \begin{itemize}
-\item  We develop DARS, a cascaded scheduling architecture that assigns long-term UAV movement to the policy, feasible user association to the middle layer, and per-slot offloading and resource allocation to a joint optimizer. Its middle layer ranks feasible user--UAV associations by their marginal change in the current sum-SLRR objective, then applies bounded move/swap improvement while respecting coverage and capacity constraints.
+\item  We develop DARS, a cascaded scheduling architecture that separates long-term UAV movement and task-offloading decisions, feasible user association, and instantaneous resource allocation. This decomposition reduces the continuous action dimension while retaining per-slot scheduling efficiency.
 \item We design a task-demand attention encoder to construct a permutation-invariant global representation of the user-demand configuration. We further develop a dual-priority replay rule that combines temporal-difference error and reward variation with $n$-step returns, thereby emphasizing demand shifts and energy-critical transitions.
-\item We formulate fixed-association offloading and resource allocation as a concave maximization. Its KKT allocation couples bandwidth and CPU through two multipliers; an active-set formula solves the CPU multiplier for each bandwidth multiplier, and bisection solves the remaining scalar equation. Removing per-user offloading outputs reduces the policy action dimension from $3K+M$ to $3K$.
+\item We establish the strict convexity of the computation and bandwidth allocation subproblems and derive square-root closed-form solutions through the Karush-Kuhn-Tucker conditions. These solutions avoid including instantaneous resource variables in the reinforcement-learning action space.
 \item We evaluate the proposed framework through extensive simulations against
 mainstream stochastic, deterministic and multi-agent policy baselines. DARS
 attains higher cumulative reward, a larger service latency reduction ratio and
@@ -1191,173 +1192,223 @@ decomposes the original problem into a cascaded decision-making process.
 
 Fig.~\ref{fig:framework} provides an overview of the online scheduling and training procedure of DARS. The framework consists of two coupled branches: an online decision branch and a learning update branch. In the online decision branch, the environment first outputs the current system state $s(t)$, including UAV battery and position states, user task states, WCT-related information, and time progress. The Task-Demand Attention (TDA) encoder then maps the raw state into a compact demand-aware representation $h(t)$, which highlights active users and time-varying task hotspots.
 
-Based on $h(t)$, the outer-layer SAC actor generates only UAV movement
-decisions. After the UAV positions are updated, the middle layer
-forms the ground set of active-user--UAV pairs that satisfy the coverage
-constraint and evaluates each candidate by its marginal change in the current
-sum-SLRR objective. It repeatedly adds the feasible pair with the largest
-positive marginal gain, subject to the one-UAV-per-user and per-UAV capacity
-constraints, until no positive-gain addition remains. A bounded local search
-then considers dropping an assigned user, moving an overlap user to another
-covering UAV, and swapping two overlap users between UAVs. An operation is
-accepted only when it is feasible and strictly increases the same objective.
-This produces the serving set $\mathcal{S}_k(t)$ of each UAV. The inner layer
-jointly optimizes the offloading ratios, CPU frequencies, and bandwidths for
-each serving set. Users that are not associated with a UAV execute their tasks
-locally.
+Based on $h(t)$, the outer-layer SAC actor generates the high-level continuous
+action $a(t)$, including UAV movement decisions and the proposed offloading
+ratios $\hat{x}_i(t)$. After the UAV positions are updated, the middle layer
+constructs all feasible active-user--UAV pairs satisfying the coverage
+constraint. These pairs are sorted in ascending order of the three-dimensional
+distance $d_{i,k}(t)$. Starting from the nearest pair, an association is
+established only if the user has not yet been associated and the candidate
+UAV has served fewer than $N_{\max}$ users. This greedy procedure continues
+until no feasible pair remains, thereby obtaining the serving set
+$\mathcal{S}_k(t)$ of each UAV. For an associated user, its proposed
+offloading ratio is retained, whereas an unassociated user executes its task
+entirely locally. Accordingly, the effective offloading ratio is
+\begin{equation}\label{eq:effective_offloading}
+x_i(t)
+=
+\hat{x}_i(t)
+\sum_{k\in\mathcal{K}}a_{i,k}(t).
+\end{equation}
+The inner layer then derives the closed-form CPU frequency allocation
+$f_{i,k}(t)$ and bandwidth allocation $b_{i,k}(t)$ for the associated
+offloading users.
 The cascaded decisions are executed in the environment, which produces the latency-reduction reward $r(t)$, the next state $s(t+1)$, and the termination signal $d(t)$.
 
-In the learning update branch, each transition $(s(t),a(t),r(t),s(t+1),d(t))$ is stored in the dual-priority replay buffer. Mini-batches are sampled according to both value-estimation errors and reward-surprise signals, so that energy-critical states and demand-shift transitions can be replayed more frequently. The sampled transitions are used to update the twin critics and the actor network, and the updated actor is then used for subsequent online scheduling decisions. Through this two-branch design, DARS learns long-term mobility while solving instantaneous offloading and resource allocation after association, improving policy efficiency under dynamic task demands and battery-constrained UAV operation.
+In the learning update branch, each transition $(s(t),a(t),r(t),s(t+1),d(t))$ is stored in the dual-priority replay buffer. Mini-batches are sampled according to both value-estimation errors and reward-surprise signals, so that energy-critical states and demand-shift transitions can be replayed more frequently. The sampled transitions are used to update the twin critics and the actor network, and the updated actor is then used for subsequent online scheduling decisions. Through this two-branch design, DARS separates long-term mobility and offloading learning from instantaneous resource allocation, while improving the training efficiency under dynamic task demands and battery-constrained UAV operation.
 
 
 The design of DARS follows two principles. First, long-term sequential
-decisions, particularly UAV movement, are handled by DRL because they depend
-on future task arrivals, battery evolution, and charging opportunities.
-Second, for each slot, user association is followed by a joint convex
-optimization of offloading ratios, CPU frequencies, and bandwidths. This
-removes per-user offloading outputs from the policy and reduces its action
-dimension from $3K+M$ to $3K$.
+decisions, such as UAV movement and task offloading, are handled by DRL
+because they depend on future task arrivals, battery evolution, and charging
+opportunities. Second, instantaneous resource allocation is separated from
+the DRL action space and solved analytically, because it has a tractable
+convex structure once trajectories, associations, and offloading ratios are
+fixed. This decomposition reduces the action dimension of DRL while keeping
+the resource scheduling efficient and interpretable.
+
 
 % ============================================================
+\subsection{Inner-Layer Closed-Form Resource Allocation}\label{subsec:closed_form}
+The motivation for separating resource allocation from the DRL action space
+is twofold. On the one hand, CPU frequency and bandwidth allocation are
+instantaneous scheduling variables that should be determined within each time
+slot after user association and offloading decisions are known. On the other
+hand, including these variables directly in the DRL action would significantly
+increase the action dimension and make policy learning less stable. Therefore,
+we solve the inner-layer resource allocation analytically and feed the resulting
+latency and energy consumption back to the outer-layer learning process.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig/frame.pdf}
+\caption{Overall framework of DARS.}
+\label{fig:framework}
+\end{figure}
 
-\subsubsection{Marginal-Gain User Association}\label{subsubsec:association}
-For fixed UAV locations, let $\mathcal{E}(t)$ contain the active-user--UAV
-pairs satisfying the coverage constraint. The feasible association sets are
-the intersection of two partition matroids: each user is assigned to at most
-one UAV, and each UAV serves at most $N_{\max}$ users. For an assigned set
-$\mathcal{S}_k(t)$, define its value using the joint inner optimization:
-\begin{equation}\label{eq:association_objective}
-  F(\bm{A}(t)) = \sum_{k\in\mathcal{K}} V_k(\mathcal{S}_k(t)), \qquad
-  V_k(\mathcal{S}_k(t)) =
-  \max_{\bm{b}_k,\bm{f}_k}
-  \sum_{i\in\mathcal{S}_k(t)}
-  \frac{A_i(t)}
-  {A_i(t)+a_{i,k}(t)/b_{i,k}(t)+c_i(t)/f_{i,k}(t)},
-\end{equation}
-subject to the per-UAV bandwidth and CPU budgets in
-\eqref{eq:joint_inner}. For a feasible pair $(i,k)$, its marginal gain is
-\begin{equation}\label{eq:association_marginal}
-  \Delta_{i,k}(\bm{A}) =
-  F\bigl(\bm{A}\cup\{(i,k)\}\bigr)-F(\bm{A}).
-\end{equation}
-The greedy phase adds the feasible pair with the largest positive marginal
-gain. Bounded move/swap search uses the same objective and accepts only
-feasible, strictly improving changes. Monotonicity follows because the inner
-optimizer can assign zero resources to a newly added user. We do not claim
-submodularity or a $1/3$ approximation guarantee: the two-resource coupling
-prevents that conclusion, and numerical tests found a submodularity
-counterexample. The association policy is therefore evaluated empirically
-against distance-priority association and exact small-instance subset
-dynamic programming. If $E$ is the number of feasible pairs, $r$ the number
-of greedy additions, and $L$ the number of local-search passes, each uncached
-subset evaluation invokes a solver with complexity
-$O(M\log M\log(1/\epsilon))$ in the worst case. The resulting conservative
-association bound is
-$O((rE+L(M^2+MK))M\log M\log(1/\epsilon))$.
 
-\subsection{Joint Inner-Layer Offloading and Resource Allocation}\label{subsec:closed_form}
-After user association, the offloading ratio and the CPU and bandwidth
-allocations are optimized jointly for each UAV. For a task-active user $i$
-served by UAV $k$, define the all-local latency and the per-unit-offloading
-edge latency as
-\begin{equation}
- A_i(t)=\frac{C_i(t)}{f_{\mathrm{UE}}},\quad
- a_{i,k}(t)=\frac{D_i(t)}
- {\log_2(1+P_{\mathrm{tx}}g_{i,k}(t)/\sigma_n^2)},\quad
- c_i(t)=C_i(t).
+Given the outer-layer DRL outputs, including UAV trajectories $\bm{Q}$, user association $\bm{A}$, and offloading ratios $\bm{X}$, the local computation latency  $T_i^{\mathrm{loc}}(t)$ is independent of UAV-side CPU frequency and bandwidth allocation. Directly minimizing the original max-latency expression would lead to a piecewise resource allocation problem, where allocating additional edge resources to users whose edge latency is already no larger than their local latency may not further reduce the final completion latency. To keep the per-slot scheduler lightweight and analytically tractable, we solve an edge-latency-oriented inner subproblem that minimizes the computation and transmission components of the edge offloading branch. The obtained closed-form solution is optimal for the inner subproblems \textbf{P2} and \textbf{P3}, while the final task completion latency, SLRR reward, and battery evolution are still evaluated according to the original max-latency model.
+
+\subsubsection{Computation Resource Allocation}
+
+Let \(\omega_i(t)=x_i(t)D_i(t)\phi\) denote the offloaded computation workload of user \(i\). Define the active offloading user set as
+\begin{equation}\label{eq:active_set2}
+  \mathcal{S}_k^{+}(t) = \{i \in \mathcal{S}_k(t) :
+  \xi_i(t) = 1 \;\text{and}\; x_i(t) > 0\},
 \end{equation}
-For given bandwidth $b_{i,k}(t)$ and CPU frequency $f_{i,k}(t)$, let
-$E_{i,k}(t)=a_{i,k}(t)/b_{i,k}(t)+c_i(t)/f_{i,k}(t)$. The local and edge
-latencies are $(1-x_i)A_i$ and $x_iE_{i,k}$, respectively. Their maximum is
-minimized over $x_i\in[0,1]$ when the two branch latencies are equal, giving
-\begin{equation}\label{eq:optimal_offload_ratio}
- x_i^*(t)=\frac{A_i(t)}{A_i(t)+E_{i,k}(t)},\qquad
- T_i^*(t)=\frac{A_i(t)E_{i,k}(t)}{A_i(t)+E_{i,k}(t)},\qquad
- \rho_i^*(t)=\frac{A_i(t)}{A_i(t)+E_{i,k}(t)}.
-\end{equation}
-Thus, for a fixed serving set, the inner problem is
-\begin{align}
-(\textbf{P2})\quad
-\max_{\bm{b}_k,\bm{f}_k}\quad&
- \sum_{i\in\mathcal{S}_k(t)}
- \frac{A_i(t)}
- {A_i(t)+a_{i,k}(t)/b_{i,k}(t)+c_i(t)/f_{i,k}(t)}
- \notag\\
-\mathrm{s.t.}\quad&
- \sum_{i\in\mathcal{S}_k(t)} b_{i,k}(t)\le W,\quad
- \sum_{i\in\mathcal{S}_k(t)} f_{i,k}(t)\le F_{\mathrm{UAV}},\quad
- b_{i,k}(t),f_{i,k}(t)\ge 0.
-\label{eq:joint_inner}
+which contains users that are both task-active ($\xi_i = 1$) and have
+a non-zero offloading ratio ($x_i > 0$).
+For users $i \notin \mathcal{S}_k^{+}(t)$, we set $f_{i,k}(t) = 0$.
+The following sub-problem is defined only over $\mathcal{S}_k^{+}(t)$,
+ensuring $\omega_i(t) > 0$ for all involved users.
+
+The computation resource allocation subproblem is formulated as \textbf{P2}:
+\begin{align}\label{eq:sub_comp}
+  (\textbf{P2}) \quad
+  \min_{\{f_{i,k}\}} &\quad
+  \sum_{i \in \mathcal{S}_k^{+}(t)} \frac{\omega_i(t)}{f_{i,k}(t)} \notag \\
+  \mathrm{s.t.} &\quad
+  \sum_{i \in \mathcal{S}_k^{+}(t)} f_{i,k}(t) = F_{\mathrm{UAV}},
+  \; f_{i,k}(t) > 0.
 \end{align}
-A zero allocation to either edge resource is interpreted as local execution
-for that user. If the serving set is empty, all allocations are zero.
+%>> [CHANGED] Hardcoded "(18g)" replaced with \eqref{prob:P1g}.
+Note that the original constraint~\eqref{prob:P1g} is an inequality
+$\sum_i f_{i,k} \le F_{\mathrm{UAV}}$.
+Since the objective $\omega_i / f_{i,k}$ is strictly monotonically decreasing
+in $f_{i,k}$ (given $\omega_i > 0$), the capacity constraint is necessarily
+tight at optimality.
+Thus, replacing the inequality with an equality does not affect optimality.
 
-\begin{theorem}[Global optimality of the joint inner problem]
-For a fixed UAV location and serving set, \textbf{P2} is a concave
-maximization over a convex feasible region. Therefore, every solution
-satisfying its KKT conditions is a global optimum.
+\begin{theorem}[Strict Convexity]\label{thm:convex}
+Sub-problem \textbf{P2} is strictly convex
+over the feasible region $\{f_{i,k}>0:\sum_i f_{i,k}=F_{\mathrm{UAV}}\}$; hence,
+a unique global optimum exists \cite{boyd2004convex}.
 \end{theorem}
 \begin{IEEEproof}
-For positive $b$ and $f$, define
-$h_i(b,f)=bf/(a_{i,k}f+c_i b)=1/E_{i,k}$. This is a concave,
-nonnegative weighted harmonic function. The utility in \textbf{P2} can be
-written as $\phi(A_i h_i)$, where $\phi(u)=u/(1+u)$ is concave and
-nondecreasing for $u\ge0$. The composition of a concave nondecreasing
-function with a concave function is concave. Hence every user utility and
-their sum are concave. The resource constraints are affine, and positive
-resource budgets admit a strictly feasible point. The KKT conditions are
-therefore sufficient for global optimality.
+Let $n_k = |\mathcal{S}_k^{+}(t)|$ and
+$\bm{f} = [f_{1,k}, \ldots, f_{n_k,k}]^{\top} \in \mathbb{R}_{++}^{n_k}$.
+The Hessian matrix of the objective function
+$\Psi(\bm{f}) = \sum_{i=1}^{n_k} \omega_i / f_{i,k}$ is given by
+\begin{equation}\label{eq:proo}
+\nabla^2 \Psi(\bm{f}) = \mathrm{diag}\!\left(\frac{2\omega_1}{f_{1,k}^3},
+\frac{2\omega_2}{f_{2,k}^3}, \ldots, \frac{2\omega_{n_k}}{f_{n_k,k}^3}\right),
+\end{equation}
+which is positive definite since $\omega_i>0$ and $f_{i,k}>0$.
+The constraint $f_{i,k} > 0$ is an open set; however, 
+the feasible set $\{f_{i,k} > 0 : \sum_i f_{i,k} = F_{\mathrm{UAV}}\}$ 
+is bounded. Since the objective $\omega_i / f_{i,k} \to +\infty$ 
+as any $f_{i,k} \to 0^+$, the infimum cannot be attained on the 
+boundary. Combined with the continuity of $\Psi(\bm{f})$ 
+and the compactness of the closure 
+$\{f_{i,k} \ge 0 : \sum_i f_{i,k} = F_{\mathrm{UAV}}\}$, 
+the optimal solution exists in the relative interior and is 
+unique by strict convexity.
 \end{IEEEproof}
 
-For positive allocations, write
-$g_i=\sqrt{a_{i,k}\lambda}+\sqrt{c_i\mu}$, where $\lambda$ and $\mu$ are the
-bandwidth and CPU multipliers. Differentiating the objective with respect to
-$b_{i,k}$ and $f_{i,k}$ gives the KKT allocation
-\begin{equation}\label{eq:joint_waterfill}
- y_i=\left[\frac{1}{\sqrt{A_i}}-\frac{g_i}{A_i}\right]^+,\quad
- b_{i,k}^*=y_i\sqrt{\frac{a_{i,k}}{\lambda}},\quad
- f_{i,k}^*=y_i\sqrt{\frac{c_i}{\mu}}.
+\begin{theorem}[Optimal Closed-Form Solution]\label{thm:closed_form}
+The unique global optimum of \textbf{P2} is given by
+\begin{equation}\label{eq:opt_freq}
+  f_{i,k}^{*}(t) =
+  F_{\mathrm{UAV}}
+  \frac{\sqrt{\omega_i(t)}}
+       {\sum_{j \in \mathcal{S}_k^{+}(t)} \sqrt{\omega_j(t)}},
+  \quad \forall i \in \mathcal{S}_k^{+}(t).
 \end{equation}
-If $g_i\ge\sqrt{A_i}$, then $y_i=0$ and user $i$ executes locally. For users
-with positive resources, $x_i^*$ follows from \eqref{eq:optimal_offload_ratio}.
-The common $y_i$ couples bandwidth and CPU allocation, so the two resources
-cannot be optimized by independent square-root rules.
+\end{theorem}
 
-For fixed $\lambda$, define $q=\sqrt{\mu}$ and
-$\tau_i=(\sqrt{A_i}-\sqrt{a_{i,k}\lambda})^+/\sqrt{c_i}$. Users are
-CPU-active exactly when $q<\tau_i$. Sorting these thresholds gives an active
-prefix; for a candidate prefix $I$, the CPU budget equation has the explicit
-solution
-\[
-q=\frac{\sum_{i\in I}\sqrt{c_i}(\sqrt{A_i}-\sqrt{a_{i,k}\lambda})/A_i}
-{F_{\mathrm{UAV}}+\sum_{i\in I}c_i/A_i}.
-\]
-The consistent prefix is found by checking its adjacent thresholds. Thus,
-the CPU multiplier is obtained by an active-set calculation, without an inner
-bisection. The bandwidth multiplier $\lambda$ is then found by bisection
-using the monotone bandwidth demand $\sum_i b_{i,k}(\lambda)$. Sorting costs
-$O(n_k\log n_k)$ per outer iteration, so the per-UAV complexity is
-$O(n_k\log n_k\log(1/\epsilon))$, where $n_k=|\mathcal{S}_k(t)|$. Since
-$\sum_k n_k\le M$, a conservative per-slot bound is
-$O(M\log M\log(1/\epsilon))$.
+\begin{IEEEproof}
+Since \(\omega_i(t)>0\) for all \(i\in\mathcal{S}_k^{+}(t)\), the objective
+\(\sum_{i\in\mathcal{S}_k^{+}(t)}\omega_i(t)/f_{i,k}(t)\) is monotonically
+decreasing with respect to each \(f_{i,k}(t)\). Therefore, the CPU resource
+constraint must be tight at the optimum; otherwise, increasing the allocated
+CPU frequency of any active offloading user can further reduce the objective.
 
-The inner objective does not include computation energy or the environment's
-hard edge-service deadline. After optimization, the safety layer reduces
-offloading ratios only if needed to satisfy these execution constraints.
-When this projection is active, the executed allocation is feasible but is
-not claimed to remain the unconstrained optimum of \textbf{P2}.
+By Theorem~\ref{thm:convex}, \textbf{P2} is strictly convex, and the KKT conditions are
+sufficient for global optimality~\cite{boyd2004convex}. The Lagrangian is
+\begin{equation}\label{eq:lagrangian_freq}
+\mathcal{L}
+=
+\sum_{i\in\mathcal{S}_k^{+}(t)}
+\frac{\omega_i(t)}{f_{i,k}(t)}
++
+\nu
+\left(
+\sum_{i\in\mathcal{S}_k^{+}(t)}f_{i,k}(t)-F_{\mathrm{UAV}}
+\right).
+\end{equation}
+where \(\nu\) is the Lagrange multiplier. From the stationarity condition,
+we have
+\begin{equation}\label{eq:stationarity_freq}
+\frac{\partial \mathcal{L}}{\partial f_{i,k}(t)}
+=
+-\frac{\omega_i(t)}{f_{i,k}^2(t)}+\nu=0.
+\end{equation}
+
+
+Thus,
+\begin{equation}\label{eq:freq_nu}
+f_{i,k}(t)=\sqrt{\frac{\omega_i(t)}{\nu}}.
+\end{equation}
+Substituting \eqref{eq:freq_nu} into
+\(\sum_{i\in\mathcal{S}_k^{+}(t)}f_{i,k}(t)=F_{\mathrm{UAV}}\), we obtain
+\begin{equation}\label{eq:nu_freq}
+\sqrt{\nu}
+=
+\frac{\sum_{j\in\mathcal{S}_k^{+}(t)}\sqrt{\omega_j(t)}}
+{F_{\mathrm{UAV}}}.
+\end{equation}
+Since $\omega_j(t) > 0$ for all $j \in \mathcal{S}_k^+(t)$, 
+it follows that $\sqrt{\nu} > 0$, i.e., the Lagrange multiplier 
+$\nu > 0$.
+Finally, substituting \eqref{eq:nu_freq} into \eqref{eq:freq_nu} yields
+\eqref{eq:opt_freq}. Since \textbf{P2} is strictly convex, the obtained KKT point is
+the unique global optimum.
+\end{IEEEproof}
+
+
+\subsubsection{Bandwidth Allocation}
+
+Define the equivalent transmission workload of user~$i$ as
+\begin{equation}
+  \chi_{i,k}(t) = \frac{x_i(t)\,D_i(t)}
+  {\log_2\!\bigl(1 + P_{\mathrm{tx}}\,g_{i,k}(t)/\sigma_n^2\bigr)}.
+  \label{eq:chi}
+\end{equation}
+The bandwidth allocation subproblem is formulated as
+\begin{align}
+  (\textbf{P3})\quad \min_{\{b_{i,k}(t)\}} \quad 
+  & \sum_{i \in \mathcal{S}_k^+(t)} 
+    \frac{\chi_{i,k}(t)}{b_{i,k}(t)} \notag \\
+  \text{s.t.} \quad 
+  & \sum_{i \in \mathcal{S}_k^+(t)} b_{i,k}(t) = W, 
+    \quad b_{i,k}(t) > 0.
+  \label{eq:P3}
+\end{align}
+%
+Problem \textbf{P3} is structurally identical to \textbf{P2} with $\omega_i(t)$ 
+replaced by $\chi_{i,k}(t)$ and $F_{\mathrm{UAV}}$ replaced by $W$. 
+By an analogous application of Theorems~\ref{thm:convex} 
+and~\ref{thm:closed_form}, the unique optimal bandwidth 
+allocation is
+\begin{equation}\label{eq:bandwidth_opt}
+    b_{i,k}^*(t) = W \cdot 
+    \frac{\sqrt{\chi_{i,k}(t)}}
+    {\sum_{j \in \mathcal{S}_k^+(t)} \sqrt{\chi_{j,k}(t)}}, 
+    \quad \forall\, i \in \mathcal{S}_k^+(t).
+\end{equation}
+
+% ============================================================
 \subsection{Outer-Layer MDP Formulation}\label{subsec:mdp}
 
-After eliminating the instantaneous offloading and resource-allocation
-variables, the remaining trajectory decisions still depend on dynamic user demands and
+After eliminating the instantaneous resource allocation variables, the remaining
+trajectory and offloading decisions still depend on dynamic user demands and
 battery evolution. A standard MLP-based policy treats all user features as a
 flat vector, which may be sensitive to user ordering and may dilute the
 information of active users when many users are inactive. This motivates us
 to design a task-demand attention representation before applying DRL.
 
-The inner-layer joint solver eliminates the instantaneous offloading and
-resource-allocation variables, but the remaining outer-layer problem---
-optimizing UAV trajectories subject to stochastic task arrivals,
+The inner-layer closed-form solutions eliminate the resource allocation
+variables, but the remaining outer-layer problem---jointly optimizing
+UAV trajectories and offloading ratios subject to stochastic task arrivals,
 time-varying user distributions, and energy causality constraints---remains
 a sequential decision problem under uncertainty.
 Since the battery dynamics couple decisions across
@@ -1402,18 +1453,22 @@ state dimension is
 
 
 
-The agent outputs only UAV flight direction and speed:
+The agent outputs continuous actions including the flight direction,
+speed, and proposed offloading ratio:
 \begin{equation}\label{eq:action}
-  \bm{a}(t)=
-  \bigl\{\cos\varphi_k(t),\,\sin\varphi_k(t),\,a_{v,k}(t)\bigr\}_{k=1}^{K}
-  \in[-1,1]^{3K}.
+  \bm{a}(t) = \bigl[
+    \cos\varphi_k(t),\, \sin\varphi_k(t),\, v_k(t),\, \hat{x}_i(t)
+  \bigr].
 \end{equation}
-The flight heading is recovered by
-$\varphi_k(t)=\mathrm{atan2}\bigl(\sin\varphi_k(t),\cos\varphi_k(t)\bigr)$,
-and the $\tanh$ output $a_{v,k}\in[-1,1]$ maps to
-$v_k(t)=(a_{v,k}+1)V_{\max}/2$. The per-user offloading ratios are obtained
-from \eqref{eq:optimal_offload_ratio} after association and resource
-optimization; consequently, $\dim(\mathbb{A})=3K$.
+where $\varphi_k(t)\in[0,2\pi)$ is the flight heading angle of $u_k$, which is
+represented by its cosine and sine components so as to avoid the discontinuity
+at $0/2\pi$; the heading is recovered by
+$\varphi_k(t)=\mathrm{atan2}\bigl(\sin\varphi_k(t),\cos\varphi_k(t)\bigr)$.
+The $\tanh$ outputs of the Actor network, denoted by $a_{v,k}\in[-1,1]$ and
+$a_{x,i}\in[-1,1]$, are linearly mapped to physically feasible proposals as
+$v_k(t)=(a_{v,k}+1)V_{\max}/2$ and
+$\hat{x}_i(t)=(a_{x,i}+1)/2$, so that
+$\dim(\mathbb{A})=3K+M$.
 
 % \begin{equation}\label{eq:action}
 %   \bm{a}(t) = \Bigl[
@@ -1422,7 +1477,7 @@ optimization; consequently, $\dim(\mathbb{A})=3K$.
 %   \Bigr],
 % \end{equation}
 % where every component is a $\tanh$ output of the actor network and hence lies in
-% $[-1,1]$, so that $\dim(\mathbb{A})=3K$. For $u_k$, the pair
+% $[-1,1]$, so that $\dim(\mathbb{A})=3K+M$. For $u_k$, the pair
 % $\bigl(a_{c,k}(t),a_{s,k}(t)\bigr)$ encodes the flight heading through a
 % two-component representation, which avoids the discontinuity of a scalar angle
 % at $0/2\pi$. The outputs are mapped to physically feasible decisions as
@@ -1740,9 +1795,9 @@ with $\zeta\in(0,1)$ the soft-update coefficient.
     \STATE Sample $\bm{a}(t) \sim
       \pi_\theta(\cdot|\bm{h}(t))$;
     \STATE Execute $\bm{a}(t)$ and update UAV positions;
-    \STATE $\mathcal{S}_k(t) \leftarrow$ marginal-SLRR greedy association with bounded move/swap improvement;
-    \STATE $\{x_i^*,f_{i,k}^*,b_{i,k}^*\} \leftarrow$
-      joint KKT allocation by~\eqref{eq:joint_inner}--\eqref{eq:joint_waterfill};
+    \STATE $\mathcal{S}_k(t) \leftarrow$ greedy user association;
+    \STATE $\{f_{i,k}^*, b_{i,k}^*\} \leftarrow$
+      closed-form resource allocation by~\eqref{eq:opt_freq} and~\eqref{eq:bandwidth_opt};
     \STATE Observe reward $r_t$, next state $\bm{s}(t+1)$, and terminal flag $d_{\mathrm{term}}(t+1)$;
     \STATE Construct $n$-step transition $(\bm{s}_t, \bm{a}_t, G_t^{(n)},
       \bm{s}_{t+n}, d_{t+n})$ and store it into $\mathcal{D}$ with priority
@@ -1871,9 +1926,11 @@ and future recharging necessity.
 % attention-enhanced representation $\bm{h}(t)$
 % via the reparameterization trick;
 % %>> [FIXED] Hardcoded (18f) and (18e) replaced with \eqref{}.
-% (ii) the middle layer performs marginal-SLRR greedy association followed
-% by bounded move/swap improvement to obtain $\mathcal{S}_k(t)$, satisfying
-% coverage constraint~\eqref{prob:P1f} and capacity constraint~\eqref{prob:P1e};
+% (ii) the middle layer performs distance-priority greedy user association
+% to obtain $\mathcal{S}_k(t)$, satisfying coverage
+% constraint~\eqref{prob:P1f}
+% and capacity constraint~\eqref{prob:P1e}
+% with complexity $O(MK\log(MK))$;
 % (iii) the inner layer computes closed-form resource allocation
 % via~\eqref{eq:opt_freq} and~\eqref{eq:opt_bw}
 % with complexity $O(M)$.
@@ -1889,8 +1946,7 @@ and future recharging necessity.
 % The per-slot computational complexity consists of four components:
 % (i) MHA encoding: $O(M^2 d_e)$;
 % (ii) Actor forward pass: $O((6K+1+d_e) \cdot d_h)$;
-% (iii) marginal-gain association: each subset-value evaluation costs $O(M)$,
-% with greedy and bounded local-search candidate counts reported empirically;
+% (iii) greedy user association: $O(MK \log(MK))$;
 % (iv) closed-form resource allocation: $O(M)$.
 % During training, the dominant cost arises from Twin Critic backpropagation
 % and PER SumTree updates ($O(\log|\mathcal{B}|)$ per sample).
@@ -1942,8 +1998,7 @@ and future recharging necessity.
 
 
 \section{Simulation Results}\label{sec:experiment}
-The learning curves, ablations, scalability comparisons, and association results currently shown below were collected with the previous policy action and allocation formulation. They are retained for reference and must be retrained or reevaluated before they can support claims about the updated movement-only policy and joint inner solver.
-In our simulation, the task area is $500 \times 500 \,\text{m}^2$, comprising $K=2$ UAVs equipped with MEC servers, $M=30$ ground users, and $N_w =4$ wireless charging towers (WCTs). The UAVs fly at a fixed altitude of $H=100\,\text{m}$, and the WCTs are installed at a height of $70\,\text{m}$. In each time slot, the policy determines UAV flight direction and speed; after association, the environment jointly solves user offloading ratios, CPU frequencies, and bandwidths. The total service horizon is divided into $50$ time slots, with each slot lasting $8\,\text{s}$. Within a time slot, the UAV flies for $1\,\text{s}$ and utilizes the remaining $7\,\text{s}$ to hover, provide offloading services, and receive wireless charging. The users are distributed according to a hotspot cluster model, where the hotspots rotate across different stages to simulate the spatio-temporal migration of task demands in urban areas. The main simulation parameters are listed in Table~\ref{tab:param}.
+In our simulation, the task area is $500 \times 500 \,\text{m}^2$, comprising $K=2$ UAVs equipped with MEC servers, $M=30$ ground users, and $N_w =4$ wireless charging towers (WCTs). The UAVs fly at a fixed altitude of $H=100\,\text{m}$, and the WCTs are installed at a height of $70\,\text{m}$. In each time slot, every UAV jointly determines its flight direction, flight speed, and user offloading ratios. The total service horizon is divided into $50$ time slots, with each slot lasting $8\,\text{s}$. Within a time slot, the UAV flies for $1\,\text{s}$ and utilizes the remaining $7\,\text{s}$ to hover, provide offloading services, and receive wireless charging. The users are distributed according to a hotspot cluster model, where the hotspots rotate across different stages to simulate the spatio-temporal migration of task demands in urban areas. The main simulation parameters are listed in Table~\ref{tab:param}.
 
 \begin{table}[htbp]
 \centering
@@ -2077,56 +2132,16 @@ mechanism and the dual-priority ranking.
 % 替换
 The experiments adopt three performance metrics: (1) \emph{Reward}, i.e., the
 cumulative SLRR; (2) \emph{Average SLRR} $\rho$; and (3) \emph{Average Delay}.
-All learning methods use the same environment-side decision flow and action
-dimension. The joint inner optimizer is enabled for the proposed DARS setting;
-fixed-offloading baselines retain their explicitly configured ratios.
-
-\subsection{User Association Evaluation}
-The table below reproduces the earlier association-only experiment, which used
-Actor-sampled offloading ratios and separate CPU/bandwidth allocation. It is
-retained as historical context and does not measure the updated joint-inner
-objective. The current formulation still has $3^{14}=4{,}782{,}969$ possible
-assignments for $M=14$; its exact reference can be computed from per-UAV
-$2^{14}$ subset values and subset dynamic programming. The current association
-quality and runtime need to be measured with the joint solver before drawing
-new performance conclusions.
-
-\begin{table}[t]
-\centering
-\caption{Historical association objective and timing with Actor-fixed offloading and the previous separate allocator.}
-\label{tab:association_quality}
-\begin{tabular}{lccc}
-\hline
-Method & Mean / worst ratio & Mean time (ms) \\
-\hline
-Distance-priority greedy & 91.88\% / 80.21\% & 0.056 \\
-Marginal-gain greedy & 99.12\% / 92.26\% & 1.615 \\
-Marginal gain + 2 move/swap passes & 99.37\% / 92.26\% & 1.998 \\
-Exact subset-DP reference & 100\% / 100\% & 14.942 \\
-\hline
-\end{tabular}
-\end{table}
-
-These historical timing measurements were obtained on Windows 11 with an Intel Core
-i9-14900HX processor and Python 3.13.9. The subset-value precomputation takes
-14.530~ms on average, while combining the values takes 0.412~ms. In a separate
-dense-overlap stress case with all
-$M=30$ users active, marginal greedy with two move/swap passes takes 17.267~ms
-on average (23.057~ms maximum over 100 repetitions). These timings are
-measurements for the prior simulator setup, not for the joint-inner implementation. The local search
-improves the sampled mean objective from 99.12\% to 99.37\% of the exact
-reference; the empirical worst case remains 92.26\%. Since the set objective
-used by the implemented allocator has not been proved submodular, these
-results are empirical and do not imply a worst-case approximation guarantee.
+All baselines share the same inner-layer closed-form allocation in (\ref{eq:opt_freq}) and (\ref{eq:bandwidth_opt}),
+so that the comparison isolates the effect of the outer-layer policy
+representation and the replay mechanism.
 
 
 
 \subsection{Convergence Analysis}
-The convergence figures and numerical comparisons in this section were
-generated with the previous $3K+M$ policy action and separate allocation
-subproblems. They are historical results and do not evaluate the joint
-offloading/resource solver; retraining and reevaluation are required before
-using them to characterize this implementation.
+
+ We present the training convergence curves of different algorithms in Fig.~\ref{fig:convergence}. We evaluated all algorithms under the default environmental setting ($M=30$, $K=2$, $p_{\mathrm{hot}}=0.5$) and trained them over 15,000 episodes to ensure full convergence. At the end of training, DARS significantly achieves improvements of 13.3\%, 19.3\%, 24.7\%, and 25.8\% compared to ESAC-PER, SAC, TD3, and MADDPG, respectively, as shown in Fig.~\ref{fig:convergence} . Besides, we see that DARS not only attains the highest final performance but also converges faster and more stably than the baseline algorithms from Fig.~\ref{fig:convergence}. This is because the proposed task-demand-aware state representation allows the UAVs to quickly grasp the urgency of ground users, while the dual-priority experience replay mechanism prioritizes learning from highly informative transition samples, thereby significantly accelerating the training process and preventing the policy from falling into local optima.
+
 \subsection{Ablation Study}
 To quantify the contribution of the proposed components, we construct two variants by independently removing the Task-Demand Attention  module and the dual-priority replay mechanism while keeping all other settings unchanged. The results are averaged over the final 500 training episodes across three independent seeds. As shown in Fig.~\ref{fig:ablation_curves}, the complete DARS achieves a steady-state reward of 
 $710.46\pm11.19$, an SLRR of $0.4740\pm0.0077$, and an average delay of $7.5809\pm0.1108$~s. Compared with DARS without TDA, the complete model improves the reward by 15.56\%, increases the SLRR by 6.36 percentage points, and reduces the average delay by 10.79\%. These results confirm that TDA is primarily responsible for extracting demand-dependent spatial and temporal features. Compared with DARS without dual-priority replay, the complete model improves the reward by 2.22\% and reduces the delay by 1.76\%. Moreover, removing dual-priority replay increases the reward deviation from 11.19 to 22.25, indicating that prioritizing demand-shift and energy-critical transitions improves post-convergence stability.
@@ -2313,7 +2328,7 @@ ablation results in Fig.~\ref{fig:ablation_curves}.
 
 \section{Conclusion}
 
-This paper investigates the joint optimization of UAV trajectories, task offloading, and resource allocation to maximize the service latency reduction ratio in multi-UAV-assisted MEC systems with WCT-enabled wireless charging. To tackle the sparse reward dilemma induced by energy depletion, we propose a hierarchical task-demand-aware reinforcement learning framework, called DARS. In the outer layer, a SAC policy embedded with multi-head self-attention determines UAV movement. After association, the inner layer jointly optimizes offloading ratios, CPU frequencies, and bandwidths via a concave program solved using an active-set CPU multiplier and bandwidth-multiplier bisection. Furthermore, dual-priority PER and $n$-step returns are combined to reinforce the learning of critical terminal transitions. Previously collected simulation results indicate that DARS outperformed the reported baselines in
+This paper investigates the joint optimization of UAV trajectories, task offloading, and resource allocation to maximize the service latency reduction ratio in multi-UAV-assisted MEC systems with WCT-enabled wireless charging. To tackle the sparse reward dilemma induced by energy depletion, we propose a hierarchical task-demand-aware reinforcement learning framework, called DARS. In the outer layer, a SAC policy embedded with multi-head self-attention jointly determines the continuous trajectories and offloading ratios. In the inner layer, square-root proportional closed-form solutions for computation frequency and bandwidth allocation are derived via the KKT conditions. Furthermore, dual-priority PER and $n$-step returns are combined to reinforce the learning of critical terminal transitions. Simulation results demonstrate that DARS outperforms existing baselines in
 terms of cumulative reward, average latency reduction ratio, and task
 completion latency.
 

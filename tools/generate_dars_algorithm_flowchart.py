@@ -311,9 +311,8 @@ def build_svg(c: dict[str, str], include_background: bool) -> str:
     add("<title id=\"dars-title\">Pictorial flow of the DARS algorithm</title>")
     add(
         "<desc id=\"dars-desc\">The environment state is encoded by task-demand "
-        "attention, processed by a movement-only SAC actor, passed through user "
-        "association and joint offloading/resource optimization, and learned with "
-        "n-step dual-priority replay and "
+        "attention, processed by a SAC actor, passed through user association and "
+        "closed-form scheduling, and learned with n-step dual-priority replay and "
         "twin critics.</desc>"
     )
     add("<defs>")
@@ -419,19 +418,21 @@ def build_svg(c: dict[str, str], include_background: bool) -> str:
     text(1192, 445, "critics", 23, fill=c["ink"], weight=500)
     text(1192, 485, "Q<tspan baseline-shift=\"sub\" font-size=\"17\">1</tspan>  Q<tspan baseline-shift=\"sub\" font-size=\"17\">2</tspan>", 27, fill=c["blue"], italic=True)
 
-    # 4. Movement-only policy action
+    # 4. Physical action
     badge(1305, 100, "4", c["orange"])
-    text(1335, 110, "Movement-only action", 31, "start", c["ink"], 500)
+    text(1335, 110, "Physical action", 31, "start", c["ink"], 500)
     rect(1285, 145, 460, 175, c["panel"], c["orange"], 2.5, 4)
     # Trajectory cell
     rect(1305, 170, 125, 120, c["orange_soft"], c["line"], 1.5, 3)
     drone(1354, 220, 0.65, c["blue"])
     path("M1320,270 Q1355,235 1408,190", c["orange"], 3.5, dash="7 6", marker="arrow-orange")
     text(1368, 286, "c<tspan baseline-shift=\"sub\" font-size=\"17\">k</tspan>, s<tspan baseline-shift=\"sub\" font-size=\"17\">k</tspan>, v<tspan baseline-shift=\"sub\" font-size=\"17\">k</tspan>", 24, fill=c["muted"], italic=True)
-    # Action-size cell: offloading is solved after association.
+    # Offloading cell
     rect(1448, 170, 125, 120, c["orange_soft"], c["line"], 1.5, 3)
-    text(1510, 220, "3K", 35, fill=c["orange"], weight=600)
-    text(1510, 264, "movement", 17, fill=c["muted"], weight=500)
+    user(1478, 220, True, True)
+    drone(1540, 214, 0.55, c["blue"])
+    line(1497, 219, 1520, 215, c["orange"], 5, marker="arrow-orange")
+    text(1510, 286, "x<tspan baseline-shift=\"sub\" font-size=\"17\">i</tspan>", 25, fill=c["muted"], italic=True)
     # Entropy cell
     rect(1590, 170, 135, 120, c["violet_soft"], c["line"], 1.5, 3)
     path("M1612,257 C1625,207 1641,278 1656,218 C1671,174 1685,258 1703,202", c["violet"], 4)
@@ -457,7 +458,7 @@ def build_svg(c: dict[str, str], include_background: bool) -> str:
         user(ux, uy, True)
         line(ux, uy - 7, target_x, target_y, c["green"], 1.8, opacity=0.6)
     text(1402, 522, "S<tspan baseline-shift=\"sub\" font-size=\"16\">k</tspan>", 23, fill=c["muted"], italic=True)
-    # Joint inner optimizer as proportional gauges
+    # Closed-form scheduler as proportional gauges
     rect(1520, 410, 205, 118, c["panel"], c["line"], 1.5, 3)
     for j, (label, widths, col) in enumerate(
         (
@@ -471,7 +472,7 @@ def build_svg(c: dict[str, str], include_background: bool) -> str:
         for width in widths:
             rect(start, yy - 4, width, 16, col, None, 0, 2, 0.74)
             start += width + 5
-    text(1622, 518, "x*   f*   b*", 22, fill=c["muted"], italic=True, family="Cambria Math, Times New Roman, serif")
+    text(1622, 518, "f* &#8733; &#8730;&#969;   b* &#8733; &#8730;&#967;", 22, fill=c["muted"], italic=True, family="Cambria Math, Times New Roman, serif")
     path("M1515,320 L1515,390", c["orange"], 4, marker="arrow-orange")
     path("M1285,470 C1195,470 1235,560 1105,560 C820,560 660,555 425,520", c["green"], 4, marker="arrow-green")
     text(905, 584, "r<tspan baseline-shift=\"sub\" font-size=\"18\">t</tspan>, s<tspan baseline-shift=\"sub\" font-size=\"18\">t+1</tspan>", 29, fill=c["green"], italic=True)

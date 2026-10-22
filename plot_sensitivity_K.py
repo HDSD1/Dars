@@ -120,7 +120,7 @@ def plot_scheme_d():
     import config
     config.K = 3
     config.M = 30
-    config.ACTION_DIM = 3 * config.K
+    config.ACTION_DIM = 3 * config.K + config.M
     config.STATE_DIM = 6 * config.K + 4 * config.M + 1
     from UAV_env import UAVEnv
     

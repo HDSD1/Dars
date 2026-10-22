@@ -17,7 +17,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from config import (
-    K, STATE_DIM, ACTION_DIM, ACTION_BOUND,
+    K, M, STATE_DIM, ACTION_DIM, ACTION_BOUND,
     LR_ACTOR, LR_CRITIC, GAMMA, TAU_SOFT,
     MEMORY_CAPACITY, BATCH_SIZE, GRAD_CLIP,
 )
@@ -28,8 +28,11 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # ★ MADDPG 稳定性参数
 MADDPG_TAU = 0.005      # 比标准 TAU_SOFT(0.001) 快, 多 Actor 需要更快追踪
 
-# Each agent controls only its UAV movement; offloading is optimized by the environment.
+# 每个 Agent 的动作维度: 3 (cos, sin, speed) + M/K 个卸载
+# 简化: 每个 Agent 控制自己的飞行(3维) + 所有用户的卸载(M维)/K
+# 更合理: 每个 Agent 控制自己飞行(3维), 卸载由全局决定
 AGENT_ACTION_DIM = 3  # 每个 UAV: cos, sin, speed
+OFFLOAD_DIM = M       # 卸载比例仍然全局
 
 
 class MADDPGActor(nn.Module):
@@ -143,6 +146,10 @@ class MADDPGAgent:
         self.actor_targets = [MADDPGActor(s_dim, AGENT_ACTION_DIM).to(DEVICE)
                               for _ in range(K)]
 
+        # 共享的卸载 Actor (控制全局卸载比例)
+        self.offload_actor = MADDPGActor(s_dim, OFFLOAD_DIM).to(DEVICE)
+        self.offload_actor_target = MADDPGActor(s_dim, OFFLOAD_DIM).to(DEVICE)
+
         # Centralized Critic
         self.critic = MADDPGCritic(s_dim, a_dim).to(DEVICE)
         self.critic_target = MADDPGCritic(s_dim, a_dim).to(DEVICE)
@@ -150,11 +157,14 @@ class MADDPGAgent:
         # 初始化 target
         for i in range(K):
             self.actor_targets[i].load_state_dict(self.actors[i].state_dict())
+        self.offload_actor_target.load_state_dict(self.offload_actor.state_dict())
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         # 优化器
         self.actor_optimizers = [
             optim.Adam(a.parameters(), lr=LR_ACTOR) for a in self.actors]
+        self.offload_optimizer = optim.Adam(
+            self.offload_actor.parameters(), lr=LR_ACTOR)
         self.critic_optimizer = optim.Adam(
             self.critic.parameters(), lr=LR_CRITIC)
 
@@ -171,6 +181,10 @@ class MADDPGAgent:
             for k in range(K):
                 agent_act = self.actors[k](state_tensor).cpu().numpy()[0]
                 action[3*k: 3*k+3] = agent_act
+
+            # 卸载决策
+            offload_act = self.offload_actor(state_tensor).cpu().numpy()[0]
+            action[3*K:] = offload_act
 
         if noise_std > 0:
             action += np.random.normal(0, noise_std, size=self.a_dim)
@@ -194,6 +208,7 @@ class MADDPGAgent:
             for k in range(K):
                 agent_act = self.actor_targets[k](next_states)
                 next_actions[:, 3*k:3*k+3] = agent_act
+            next_actions[:, 3*K:] = self.offload_actor_target(next_states)
 
             target_q1, target_q2 = self.critic_target(next_states, next_actions)
             target_q = torch.min(target_q1, target_q2)  # ★ Clipped double-Q
@@ -214,23 +229,31 @@ class MADDPGAgent:
             for k in range(K):
                 agent_act = self.actors[k](states)
                 pred_actions[:, 3*k:3*k+3] = agent_act
+            pred_actions[:, 3*K:] = self.offload_actor(states)
 
             actor_loss = -self.critic.q1_only(states, pred_actions).mean()  # ★ 只用 Q1
 
             # 更新所有 Actor
             for opt in self.actor_optimizers:
                 opt.zero_grad()
+            self.offload_optimizer.zero_grad()
             actor_loss.backward()
             for k in range(K):
                 nn.utils.clip_grad_norm_(
                     self.actors[k].parameters(), max_norm=GRAD_CLIP)
                 self.actor_optimizers[k].step()
+            nn.utils.clip_grad_norm_(
+                self.offload_actor.parameters(), max_norm=GRAD_CLIP)
+            self.offload_optimizer.step()
 
             # ★ 软更新 (MADDPG_TAU=0.005, 比默认更快)
             for k in range(K):
                 for tp, sp in zip(self.actor_targets[k].parameters(),
                                   self.actors[k].parameters()):
                     tp.data.copy_(MADDPG_TAU * sp.data + (1-MADDPG_TAU) * tp.data)
+            for tp, sp in zip(self.offload_actor_target.parameters(),
+                              self.offload_actor.parameters()):
+                tp.data.copy_(MADDPG_TAU * sp.data + (1-MADDPG_TAU) * tp.data)
             for tp, sp in zip(self.critic_target.parameters(),
                               self.critic.parameters()):
                 tp.data.copy_(MADDPG_TAU * sp.data + (1-MADDPG_TAU) * tp.data)
@@ -238,6 +261,7 @@ class MADDPGAgent:
     def save(self, path):
         state_dict = {
             'critic': self.critic.state_dict(),
+            'offload_actor': self.offload_actor.state_dict(),
         }
         for k in range(K):
             state_dict[f'actor_{k}'] = self.actors[k].state_dict()
@@ -246,5 +270,6 @@ class MADDPGAgent:
     def load(self, path):
         checkpoint = torch.load(path, map_location=DEVICE)
         self.critic.load_state_dict(checkpoint['critic'])
+        self.offload_actor.load_state_dict(checkpoint['offload_actor'])
         for k in range(K):
             self.actors[k].load_state_dict(checkpoint[f'actor_{k}'])
