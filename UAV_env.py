@@ -1037,11 +1037,12 @@ class UAVEnv:
         sqrt_c = np.sqrt(c)
         lambda_low = 0.0
         lambda_high = float(np.max(A / a))
-        def allocation_at_lambda(lam):
+        def allocation_at_lambda(lam, include_cpu):
             delta = np.maximum(sqrt_A - np.sqrt(a * lam), 0.0)
             eligible = delta > 0.0
             if not np.any(eligible):
-                return np.zeros(n), np.zeros(n), 0.0
+                b_zero = np.zeros(n, dtype=np.float64)
+                return b_zero, (b_zero.copy() if include_cpu else None), 0.0, b_zero
 
             # For q=sqrt(mu), a CPU-active user receives
             # f_i=p_i/q-d_i when q<threshold_i. Sort thresholds and find
@@ -1056,24 +1057,23 @@ class UAVEnv:
             cumulative_p = np.cumsum(p)
             cumulative_d = np.cumsum(d)
             q_candidates = cumulative_p / (cpu_frequency + cumulative_d)
-            active_count = len(indices)
-            q = q_candidates[-1]
-            for j, candidate_q in enumerate(q_candidates):
-                next_threshold = (thresholds[j + 1]
-                                  if j + 1 < active_count else 0.0)
-                if candidate_q <= thresholds[j] and candidate_q >= next_threshold:
-                    q = candidate_q
-                    break
-
-            mu = float(q * q)
+            next_thresholds = np.empty_like(thresholds)
+            next_thresholds[:-1] = thresholds[1:]
+            next_thresholds[-1] = 0.0
+            consistent = ((q_candidates <= thresholds) &
+                          (q_candidates >= next_thresholds))
+            matches = np.flatnonzero(consistent)
+            q = q_candidates[matches[0]] if matches.size else q_candidates[-1]
             y = np.maximum(delta - sqrt_c * q, 0.0) / A
             b_try = y * sqrt_a / np.sqrt(lam)
-            f_try = y * sqrt_c / q
-            return b_try, f_try, mu
+            f_try = y * sqrt_c / q if include_cpu else None
+            return b_try, f_try, q, y
 
         for outer_iteration in range(1, max_iter + 1):
             lam = 0.5 * (lambda_low + lambda_high)
-            b_try, _, _ = allocation_at_lambda(lam)
+            # CPU allocations are not needed while searching for the bandwidth
+            # multiplier. Avoid constructing this vector for every bisection step.
+            b_try, _, _, _ = allocation_at_lambda(lam, include_cpu=False)
             b_sum = float(np.sum(b_try))
             if b_sum > bandwidth:
                 lambda_low = lam
@@ -1083,7 +1083,8 @@ class UAVEnv:
                 break
 
         lam = 0.5 * (lambda_low + lambda_high)
-        b, f, mu = allocation_at_lambda(lam)
+        b, f, q, _ = allocation_at_lambda(lam, include_cpu=True)
+        mu = float(q * q)
         positive = (b > 0.0) & (f > 0.0)
         if np.any(positive):
             edge_time = np.zeros(n, dtype=np.float64)
@@ -1184,6 +1185,29 @@ class UAVEnv:
         users = np.fromiter(self._mask_users(mask), dtype=np.int64)
         return self._association_subset_solution(k, users, context)['value']
 
+    def _association_subset_value(self, k, users, context):
+        """Score a user subset without retaining per-user allocation arrays."""
+        users = np.asarray(users, dtype=np.int64)
+        if users.size == 0:
+            return 0.0
+        if self.offload_mode == 'joint' and self.use_cvx_alloc:
+            A = context['baseline'][users]
+            a = context['a'][k, users]
+            c = context['cycles'][users]
+            ratios, b_alloc, f_alloc, _ = self._joint_waterfill(
+                A, a, c, BANDWIDTH, F_UAV)
+
+            edge_time = np.full(users.size, np.inf, dtype=np.float64)
+            edge = ((ratios > 1e-10) & (b_alloc > 0.0) & (f_alloc > 0.0))
+            edge_time[edge] = (a[edge] / b_alloc[edge] +
+                               c[edge] / f_alloc[edge])
+            local_time = (1.0 - ratios) * A
+            completion = np.maximum(local_time, ratios * edge_time)
+            completion[ratios <= 1e-10] = A[ratios <= 1e-10]
+            slrr = 1.0 - completion / np.maximum(A, 1e-12)
+            return float(np.sum(slrr))
+        return self._association_subset_solution(k, users, context)['value']
+
     def _allocate_for_association(self, association, uav_locs):
         context = self._association_value_context(uav_locs)
         allocation = {
@@ -1218,25 +1242,26 @@ class UAVEnv:
     def _marginal_gain_association(self, uav_locs):
         """Greedy actual-SLRR association followed by bounded move/swap search."""
         context = self._association_value_context(uav_locs)
-        caches = [dict() for _ in range(K)]
+        value_caches = [dict() for _ in range(K)]
         cache_hits = 0
         cache_misses = 0
 
-        def subset_solution(k, mask):
+        def subset_value(k, mask):
             nonlocal cache_hits, cache_misses
-            if mask in caches[k]:
+            if mask in value_caches[k]:
                 cache_hits += 1
-                return caches[k][mask]
+                return value_caches[k][mask]
             cache_misses += 1
             users = np.fromiter(self._mask_users(mask), dtype=np.int64)
-            solution = self._association_subset_solution(k, users, context)
-            caches[k][mask] = solution
-            return solution
-
-        def subset_value(k, mask):
-            return subset_solution(k, mask)['value']
+            value = self._association_subset_value(k, users, context)
+            value_caches[k][mask] = value
+            return value
 
         active_users = [i for i in range(M) if self.active_mask[i]]
+        covered_uavs = {
+            i: tuple(self._mask_users(context['coverage'][i]))
+            for i in active_users
+        }
         masks = [0] * K
         counts = [0] * K
         assigned_mask = 0
@@ -1248,7 +1273,7 @@ class UAVEnv:
                 user_bit = 1 << i
                 if assigned_mask & user_bit:
                     continue
-                for k in self._mask_users(context['coverage'][i]):
+                for k in covered_uavs[i]:
                     if counts[k] >= self.association_capacity:
                         continue
                     candidate_mask = masks[k] | user_bit
@@ -1279,7 +1304,7 @@ class UAVEnv:
                 source = int(owners[i])
                 bit = 1 << i
                 if source < 0:
-                    for dest in self._mask_users(context['coverage'][i]):
+                    for dest in covered_uavs[i]:
                         if counts[dest] >= self.association_capacity:
                             continue
                         candidate_masks = list(masks)
@@ -1301,7 +1326,7 @@ class UAVEnv:
 
                 if self._mask_size(context['coverage'][i]) < 2:
                     continue
-                for dest in self._mask_users(context['coverage'][i]):
+                for dest in covered_uavs[i]:
                     if dest == source or counts[dest] >= self.association_capacity:
                         continue
                     candidate_masks = list(masks)
@@ -1348,10 +1373,10 @@ class UAVEnv:
             'b_alloc': np.zeros(M, dtype=np.float64),
         }
         for k, mask in enumerate(masks):
-            for i in self._mask_users(mask):
-                association[i] = k
-            solution = subset_solution(k, mask)
-            users = solution['users']
+            users = np.fromiter(self._mask_users(mask), dtype=np.int64)
+            association[users] = k
+            subset_value(k, mask)  # Preserve the cache diagnostics for the final subsets.
+            solution = self._association_subset_solution(k, users, context)
             allocation['offload_ratios'][users] = solution['offload_ratios']
             allocation['f_alloc'][users] = solution['f_alloc']
             allocation['b_alloc'][users] = solution['b_alloc']
