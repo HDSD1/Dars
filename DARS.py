@@ -164,9 +164,16 @@ class NStepBuffer:
         当 buffer 满 n 步时, 返回合并后的 n-step transition.
         否则返回 None (等待更多 step).
         """
-        self.buffer.append(transition)
+        # Own the arrays: future environment/caller changes cannot rewrite replay.
+        state, action, reward, next_state, done = transition
+        self.buffer.append((np.array(state, copy=True), np.array(action, copy=True),
+                            float(reward), np.array(next_state, copy=True), bool(done)))
         if len(self.buffer) == self.n_step:
-            return self._compute_nstep()
+            result = self._compute_nstep()
+            # This starting state has been emitted already; do not emit it again
+            # when a terminal step flushes the remaining shorter prefixes.
+            self.buffer.popleft()
+            return result
         return None
 
     def flush(self):
@@ -181,28 +188,19 @@ class NStepBuffer:
         return results
 
     def _compute_nstep(self):
-        """从满的 buffer 中计算 n-step transition."""
-        reward = sum(
-            self.gamma ** i * self.buffer[i][2]
-            for i in range(self.n_step)
-        )
-        s, a = self.buffer[0][0], self.buffer[0][1]
-        s_next = self.buffer[-1][3]
-        # 如果中途任意一步 done, 则整个 n-step 标记为 done
-        done = any(self.buffer[i][4] for i in range(self.n_step))
-        return (s, a, reward, s_next, done)
+        return self._compute_nstep_partial()
 
     def _compute_nstep_partial(self):
-        """从不满的 buffer 中计算 partial n-step transition."""
-        n = len(self.buffer)
-        reward = sum(
-            self.gamma ** i * self.buffer[i][2]
-            for i in range(n)
-        )
-        s, a = self.buffer[0][0], self.buffer[0][1]
-        s_next = self.buffer[-1][3]
-        done = any(self.buffer[i][4] for i in range(n))
-        return (s, a, reward, s_next, done)
+        """Stop at the first terminal transition; its done mask disables bootstrap."""
+        state, action = self.buffer[0][:2]
+        reward = 0.0
+        next_state, done = self.buffer[0][3:5]
+        for index, transition in enumerate(self.buffer):
+            reward += self.gamma ** index * transition[2]
+            next_state, done = transition[3:5]
+            if done:
+                break
+        return state, action, reward, next_state, done
 
     def reset(self):
         """新 episode 时清空."""
@@ -528,6 +526,8 @@ class PERSACAgent:
         每次存入一步, 当累积 n 步后, 将 n-step transition 存入 PER buffer.
         Episode 结束时 (done=True), 刷出 buffer 中剩余的 transitions.
         """
+        # Store the actor proposal, not info['executed_action']. Rewards and
+        # next states already include the deterministic safety layer's effect.
         transition = (s, a, r, s_, done)
         nstep_transition = self.n_step_buffer.store(transition)
 
@@ -553,6 +553,7 @@ class PERSACAgent:
 
         # ---- Critic 更新 ----
         with torch.no_grad():
+            # Q and entropy are both defined in the original proposal space.
             next_actions, next_log_prob, _ = self.actor.sample(next_states)
             target_q1, target_q2 = self.critic_target(next_states, next_actions)
             target_q = torch.min(target_q1, target_q2) - self.alpha * next_log_prob
@@ -583,6 +584,7 @@ class PERSACAgent:
         # ---- Actor 更新 (★ V2: 延迟更新, 每 ACTOR_DELAY 步) ----
         actor_loss_val = 0.0
         if self.learn_step % ACTOR_DELAY == 0:
+            # Do not substitute a projected action or its raw-policy density here.
             new_actions, log_prob, _ = self.actor.sample(states)
             q1_new, q2_new = self.critic(states, new_actions)
             q_new = torch.min(q1_new, q2_new)

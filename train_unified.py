@@ -301,6 +301,28 @@ def create_per_ddpg_cvx_nowct():
 # ==================================================================
 # 通用训练函数
 # ==================================================================
+def _new_safety_stats():
+    """Counts distinguish executed slots from rejected action proposals."""
+    return dict(attempted_steps=0, executed_steps=0, movement_corrections=0,
+                offload_corrections=0, rejected_steps=0, energy_violation_steps=0,
+                max_energy_violation=0.0, env_step_seconds=0.0)
+
+
+def _record_safety_stats(stats, info, elapsed):
+    stats['attempted_steps'] += 1
+    stats['env_step_seconds'] += elapsed
+    executed = bool(info['action_executed'])
+    stats['executed_steps'] += int(executed)
+    stats['rejected_steps'] += int(not executed)
+    stats['movement_corrections'] += int(info.get('movement_projected', False))
+    stats['offload_corrections'] += int(info.get('offload_projected', False))
+    if executed:
+        violation = max(float(np.max(info['flight_energy_violation'])),
+                        float(np.max(info['service_energy_violation'])))
+        stats['max_energy_violation'] = max(stats['max_energy_violation'], violation)
+        stats['energy_violation_steps'] += int(violation > info['energy_tolerance'])
+
+
 def run_experiment(algo_name, n_episodes, seed, tag='default',
                    use_hotspot=False, disable_wct=False):
     """运行单个算法, 返回并保存结果."""
@@ -327,6 +349,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
 
     ep_rewards, avg_delays, avg_rhos, ep_survival_steps = [], [], [], []
     ep_avg_q, ep_avg_td_error, ep_critic_loss = [], [], []  # 训练诊断指标
+    safety_history, eval_safety_history = [], []
     t_start = time.time()
 
     print(f"\n{'='*58}")
@@ -339,6 +362,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         if hasattr(agent, 'ou_noise'):
             agent.ou_noise.reset()
 
+        safety_stats = _new_safety_stats()
         ep_reward = 0.0
         ep_d, ep_r = [], []
         step_q_vals, step_td_errors, step_critic_losses = [], [], []
@@ -351,11 +375,15 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             else:
                 action = agent.select_action(s_norm, noise_std=noise_std, use_ou=True)
 
-            next_state, reward, done, info = env.step(action)
+            # The critic and entropy are defined over this original proposal.
+            proposal = np.asarray(action).copy()
+            step_started = time.perf_counter()
+            next_state, reward, done, info = env.step(proposal)
+            _record_safety_stats(safety_stats, info, time.perf_counter() - step_started)
             s_next_norm = normalizer.normalize(next_state)
 
             if needs_training:
-                agent.store(s_norm, action, reward, s_next_norm, done)
+                agent.store(s_norm, proposal, reward, s_next_norm, done)
                 if total_steps >= actual_warmup_steps and agent.buffer.ready(BATCH_SIZE):
                     learn_info = agent.learn()
                     if learn_info is not None and isinstance(learn_info, dict):
@@ -365,8 +393,9 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
 
             state = next_state
             ep_reward += reward
-            ep_d.append(info['delay_active_mean'])  # 活跃用户平均时延
-            ep_r.append(info['rho_mean'])  # 只对 active 用户的 ρ 均值
+            if info['action_executed']:
+                ep_d.append(info['delay_active_mean'])  # 活跃用户平均时延
+                ep_r.append(info['rho_mean'])  # 只对 active 用户的 ρ 均值
             total_steps += 1
 
             if done:
@@ -388,9 +417,10 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             noise_std = max(EXPLORE_NOISE_MIN, noise_std * EXPLORE_DECAY)
 
         ep_rewards.append(ep_reward)
-        avg_delays.append(np.mean(ep_d))
-        avg_rhos.append(np.mean(ep_r))
-        ep_survival_steps.append(step + 1)
+        avg_delays.append(np.mean(ep_d) if ep_d else 0.0)
+        avg_rhos.append(np.mean(ep_r) if ep_r else 0.0)
+        ep_survival_steps.append(safety_stats['executed_steps'])
+        safety_history.append(safety_stats.copy())
         # 记录诊断指标 (episode 内平均)
         ep_avg_q.append(np.mean(step_q_vals) if step_q_vals else 0.0)
         ep_avg_td_error.append(np.mean(step_td_errors) if step_td_errors else 0.0)
@@ -416,20 +446,25 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         eval_env = UAVEnv(**env_kwargs)
         for eval_ep in range(N_EVAL):
             state = eval_env.reset()
+            safety_stats = _new_safety_stats()
             ep_reward = 0.0
             ep_r = []
             for step in range(SLOT_NUM):
                 s_norm = normalizer.normalize(state)
                 action = agent.select_action(s_norm, noise_std=0.0)  # ★ 无噪声
+                step_started = time.perf_counter()
                 next_state, reward, done, info = eval_env.step(action)
+                _record_safety_stats(safety_stats, info, time.perf_counter() - step_started)
                 state = next_state
                 ep_reward += reward
-                ep_r.append(info['rho_mean'])
+                if info['action_executed']:
+                    ep_r.append(info['rho_mean'])
                 if done:
                     break
             eval_rewards.append(ep_reward)
-            eval_rhos.append(np.mean(ep_r))
-            eval_survs.append(step + 1)
+            eval_rhos.append(np.mean(ep_r) if ep_r else 0.0)
+            eval_survs.append(safety_stats['executed_steps'])
+            eval_safety_history.append(safety_stats.copy())
         print(f"  [{algo_name}] Eval: R={np.mean(eval_rewards):.2f}±{np.std(eval_rewards):.2f} | "
               f"ρ={np.mean(eval_rhos):.4f}±{np.std(eval_rhos):.4f} | "
               f"Surv={np.mean(eval_survs):.1f}±{np.std(eval_survs):.1f}")
@@ -443,6 +478,10 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
     # 提取最后一次 Episode 的各类日志（为了画图）
     last_trajectory = np.array(env.trajectory_log)  # shape: (SLOT_NUM, K, 2)
     last_battery = np.array(env.battery_log)
+    safety_arrays = {}
+    for prefix, history in [('safety_', safety_history), ('eval_safety_', eval_safety_history)]:
+        for key in _new_safety_stats():
+            safety_arrays[prefix + key] = np.array([row[key] for row in history])
     np.savez(save_path,
              algo=algo_name,
              ep_reward=np.array(ep_rewards),
@@ -459,7 +498,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
              last_battery=last_battery,
              total_time=total_time,
              n_episodes=n_episodes,
-             seed=seed)
+             seed=seed,
+             **safety_arrays)
     print(f"  Saved: {save_path}")
 
     # 保存模型
