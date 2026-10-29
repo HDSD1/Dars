@@ -1,0 +1,218 @@
+{
+  "experiment": "user_order_permutation_equivariance",
+  "checkpoint": null,
+  "checkpoint_sha256": null,
+  "model_source": "random_initialization_architecture_only",
+  "torch_version": "2.15.0+cpu",
+  "K": 2,
+  "M": 30,
+  "seed": 43,
+  "samples": 32,
+  "permutations_per_sample": 10,
+  "total_permutations": 320,
+  "device": "cpu",
+  "gpu_name": null,
+  "action_dim": 36,
+  "uav_movement_dim": 6,
+  "user_offload_dim": 30,
+  "metrics": {
+    "pooled_user_embedding_max_abs_difference": 7.152557373046875e-07,
+    "movement_action_mean_abs_difference": 5.386823431763332e-09,
+    "movement_action_max_abs_difference": 2.60770320892334e-08,
+    "gaussian_mean_max_abs_error": 2.8870999813079834e-08,
+    "gaussian_logstd_max_abs_error": 3.3527612686157227e-08,
+    "critic_joint_permutation_max_abs_error": 1.7695128917694092e-08,
+    "offload_equivariance_mae_rho": 2.489735750899058e-09,
+    "offload_equivariance_max_abs_error_rho": 5.960464477539063e-08,
+    "offload_same_index_mae_rho": 0.001561352051794529,
+    "mean_between_user_rho_std": 0.001386444317176938,
+    "fraction_user_actions_within_tolerance": 1.0
+  },
+  "tolerance_rho": 1e-05,
+  "uniform_output_tolerance": 0.0001,
+  "passed": true,
+  "conclusion": "PASS",
+  "interpretation": "A pass requires the offloading decision to follow the same user when user feature tuples are reordered. Nearly uniform outputs are reported as uninformative rather than as evidence of user-specific association.",
+  "per_user": [
+    {
+      "user_index": 0,
+      "baseline_mean_rho": 0.4975091814994812,
+      "permuted_aligned_mean_rho": 0.4975091814994812,
+      "mean_absolute_alignment_error": 6.519257911286047e-10
+    },
+    {
+      "user_index": 1,
+      "baseline_mean_rho": 0.4989334046840668,
+      "permuted_aligned_mean_rho": 0.4989334046840668,
+      "mean_absolute_alignment_error": 2.3283064365386963e-09
+    },
+    {
+      "user_index": 2,
+      "baseline_mean_rho": 0.4972327649593353,
+      "permuted_aligned_mean_rho": 0.49723273515701294,
+      "mean_absolute_alignment_error": 3.81842246710562e-09
+    },
+    {
+      "user_index": 3,
+      "baseline_mean_rho": 0.49650368094444275,
+      "permuted_aligned_mean_rho": 0.4965037405490875,
+      "mean_absolute_alignment_error": 2.7008355552027297e-09
+    },
+    {
+      "user_index": 4,
+      "baseline_mean_rho": 0.4976280927658081,
+      "permuted_aligned_mean_rho": 0.4976281225681305,
+      "mean_absolute_alignment_error": 2.421438605182402e-09
+    },
+    {
+      "user_index": 5,
+      "baseline_mean_rho": 0.4987887740135193,
+      "permuted_aligned_mean_rho": 0.4987887740135193,
+      "mean_absolute_alignment_error": 1.6763805898989403e-09
+    },
+    {
+      "user_index": 6,
+      "baseline_mean_rho": 0.49742966890335083,
+      "permuted_aligned_mean_rho": 0.49742966890335083,
+      "mean_absolute_alignment_error": 3.073364451822158e-09
+    },
+    {
+      "user_index": 7,
+      "baseline_mean_rho": 0.4961339831352234,
+      "permuted_aligned_mean_rho": 0.496133953332901,
+      "mean_absolute_alignment_error": 7.450580707946131e-10
+    },
+    {
+      "user_index": 8,
+      "baseline_mean_rho": 0.49719610810279846,
+      "permuted_aligned_mean_rho": 0.49719613790512085,
+      "mean_absolute_alignment_error": 2.7939677238464355e-09
+    },
+    {
+      "user_index": 9,
+      "baseline_mean_rho": 0.4988842010498047,
+      "permuted_aligned_mean_rho": 0.4988842010498047,
+      "mean_absolute_alignment_error": 3.632158129818208e-09
+    },
+    {
+      "user_index": 10,
+      "baseline_mean_rho": 0.4972606897354126,
+      "permuted_aligned_mean_rho": 0.497260719537735,
+      "mean_absolute_alignment_error": 2.1420418772066796e-09
+    },
+    {
+      "user_index": 11,
+      "baseline_mean_rho": 0.4962756633758545,
+      "permuted_aligned_mean_rho": 0.4962756633758545,
+      "mean_absolute_alignment_error": 2.1420418772066796e-09
+    },
+    {
+      "user_index": 12,
+      "baseline_mean_rho": 0.49754488468170166,
+      "permuted_aligned_mean_rho": 0.49754491448402405,
+      "mean_absolute_alignment_error": 3.073364451822158e-09
+    },
+    {
+      "user_index": 13,
+      "baseline_mean_rho": 0.4989546537399292,
+      "permuted_aligned_mean_rho": 0.4989546239376068,
+      "mean_absolute_alignment_error": 4.470348535789981e-09
+    },
+    {
+      "user_index": 14,
+      "baseline_mean_rho": 0.4973002076148987,
+      "permuted_aligned_mean_rho": 0.49730023741722107,
+      "mean_absolute_alignment_error": 1.955777317874663e-09
+    },
+    {
+      "user_index": 15,
+      "baseline_mean_rho": 0.4962695240974426,
+      "permuted_aligned_mean_rho": 0.4962695240974426,
+      "mean_absolute_alignment_error": 2.0489097085629737e-09
+    },
+    {
+      "user_index": 16,
+      "baseline_mean_rho": 0.49736303091049194,
+      "permuted_aligned_mean_rho": 0.49736303091049194,
+      "mean_absolute_alignment_error": 3.166496842510469e-09
+    },
+    {
+      "user_index": 17,
+      "baseline_mean_rho": 0.4989567995071411,
+      "permuted_aligned_mean_rho": 0.4989567697048187,
+      "mean_absolute_alignment_error": 1.3038515822572094e-09
+    },
+    {
+      "user_index": 18,
+      "baseline_mean_rho": 0.4976719617843628,
+      "permuted_aligned_mean_rho": 0.4976719915866852,
+      "mean_absolute_alignment_error": 3.725290298461914e-09
+    },
+    {
+      "user_index": 19,
+      "baseline_mean_rho": 0.49615442752838135,
+      "permuted_aligned_mean_rho": 0.49615439772605896,
+      "mean_absolute_alignment_error": 5.122274160385132e-09
+    },
+    {
+      "user_index": 20,
+      "baseline_mean_rho": 0.497314453125,
+      "permuted_aligned_mean_rho": 0.497314453125,
+      "mean_absolute_alignment_error": 1.3038515822572094e-09
+    },
+    {
+      "user_index": 21,
+      "baseline_mean_rho": 0.49886924028396606,
+      "permuted_aligned_mean_rho": 0.49886924028396606,
+      "mean_absolute_alignment_error": 2.9802322831784522e-09
+    },
+    {
+      "user_index": 22,
+      "baseline_mean_rho": 0.49784013628959656,
+      "permuted_aligned_mean_rho": 0.49784010648727417,
+      "mean_absolute_alignment_error": 2.3283064365386963e-09
+    },
+    {
+      "user_index": 23,
+      "baseline_mean_rho": 0.4964120388031006,
+      "permuted_aligned_mean_rho": 0.4964120388031006,
+      "mean_absolute_alignment_error": 1.7695128695649487e-09
+    },
+    {
+      "user_index": 24,
+      "baseline_mean_rho": 0.49761301279067993,
+      "permuted_aligned_mean_rho": 0.49761295318603516,
+      "mean_absolute_alignment_error": 2.1420418772066796e-09
+    },
+    {
+      "user_index": 25,
+      "baseline_mean_rho": 0.4989342987537384,
+      "permuted_aligned_mean_rho": 0.498934268951416,
+      "mean_absolute_alignment_error": 1.955777317874663e-09
+    },
+    {
+      "user_index": 26,
+      "baseline_mean_rho": 0.4974198341369629,
+      "permuted_aligned_mean_rho": 0.4974198341369629,
+      "mean_absolute_alignment_error": 4.377215923057065e-09
+    },
+    {
+      "user_index": 27,
+      "baseline_mean_rho": 0.4962925314903259,
+      "permuted_aligned_mean_rho": 0.49629250168800354,
+      "mean_absolute_alignment_error": 2.514570995870713e-09
+    },
+    {
+      "user_index": 28,
+      "baseline_mean_rho": 0.49765515327453613,
+      "permuted_aligned_mean_rho": 0.49765515327453613,
+      "mean_absolute_alignment_error": 1.8626451769865326e-10
+    },
+    {
+      "user_index": 29,
+      "baseline_mean_rho": 0.49890831112861633,
+      "permuted_aligned_mean_rho": 0.49890828132629395,
+      "mean_absolute_alignment_error": 2.1420418772066796e-09
+    }
+  ]
+}

@@ -129,15 +129,19 @@ class UserAttention(nn.Module):
                 nn.init.xavier_uniform_(layer.weight)
                 nn.init.zeros_(layer.bias)
 
-    def forward(self, user_features):
-        """
-        Args:   user_features: (batch, M, 4)
-        Returns: (batch, embed_dim) 聚合后的用户表示
+    def encode_users(self, user_features):
+        """Return (batch, M, embed_dim) tokens in the input user order.
+
+        Projection and LayerNorm share parameters across rows. No user-index
+        embedding is introduced, so reordering users reorders these tokens.
         """
         x = self.user_proj(user_features)
         attn_out, _ = self.mha(x, x, x)
-        attn_out = self.ln(attn_out + x)
-        return attn_out.mean(dim=1)
+        return self.ln(attn_out + x)
+
+    def forward(self, user_features):
+        """Global mean context; retain this interface for existing callers."""
+        return self.encode_users(user_features).mean(dim=1)
 
 
 # ==================================================================
@@ -352,52 +356,77 @@ class PERBufferSAC:
 # ★ V4: Attention-Enhanced SAC Actor
 # ==================================================================
 class SACActor(nn.Module):
-    """★ V4: Attention-Enhanced Actor.
+    """Global movement head and a parameter-shared user-wise offloading head."""
+    architecture = "dars_userwise_v1"
 
-    将用户特征通过 Multi-Head Self-Attention 聚合后,
-    与 UAV 特征拼接, 送入策略网络.
-    """
     def __init__(self, s_dim, a_dim):
         super().__init__()
+        if s_dim != STATE_DIM or a_dim != 3 * K + M:
+            raise ValueError("DARS dimensions must match the configured K and M")
         self.user_attn = UserAttention()
         combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM
         self.fc1 = nn.Linear(combined_dim, HIDDEN_DIM_1)
         self.ln1 = nn.LayerNorm(HIDDEN_DIM_1)
         self.fc2 = nn.Linear(HIDDEN_DIM_1, HIDDEN_DIM_2)
         self.ln2 = nn.LayerNorm(HIDDEN_DIM_2)
-        self.mean_head = nn.Linear(HIDDEN_DIM_2, a_dim)
-        self.log_std_head = nn.Linear(HIDDEN_DIM_2, a_dim)
+        self.mean_head = nn.Linear(HIDDEN_DIM_2, 3 * K)
+        self.log_std_head = nn.Linear(HIDDEN_DIM_2, 3 * K)
+        # g_off([e_i, h]): the same layers are applied to all user rows.
+        self.offload_body = nn.Sequential(
+            nn.Linear(ATTENTION_EMBED_DIM + combined_dim, HIDDEN_DIM_1),
+            nn.LayerNorm(HIDDEN_DIM_1), nn.ReLU(),
+            nn.Linear(HIDDEN_DIM_1, HIDDEN_DIM_2),
+            nn.LayerNorm(HIDDEN_DIM_2), nn.ReLU(),
+        )
+        self.offload_mean_head = nn.Linear(HIDDEN_DIM_2, 1)
+        self.offload_log_std_head = nn.Linear(HIDDEN_DIM_2, 1)
         self._init_weights()
 
     def _init_weights(self):
-        for layer in [self.fc1, self.fc2]:
+        for layer in [self.fc1, self.fc2, self.offload_body[0], self.offload_body[3]]:
             nn.init.xavier_uniform_(layer.weight)
             nn.init.zeros_(layer.bias)
-        for layer in [self.mean_head, self.log_std_head]:
+        for layer in [self.mean_head, self.log_std_head,
+                      self.offload_mean_head, self.offload_log_std_head]:
             nn.init.uniform_(layer.weight, -3e-3, 3e-3)
             nn.init.zeros_(layer.bias)
 
     def _encode(self, state):
         uav_feat, user_feat = decompose_state(state)
-        user_embed = self.user_attn(user_feat)
-        return torch.cat([uav_feat, user_embed], dim=1)
+        user_tokens = self.user_attn.encode_users(user_feat)
+        context = torch.cat([uav_feat, user_tokens.mean(dim=1)], dim=1)
+        return user_tokens, context
 
     def forward(self, state):
-        x = self._encode(state)
+        user_tokens, context = self._encode(state)
+        x = context
         x = torch.relu(self.ln1(self.fc1(x)))
         x = torch.relu(self.ln2(self.fc2(x)))
-        mean = self.mean_head(x)
-        log_std = self.log_std_head(x).clamp(LOG_SIG_MIN, LOG_SIG_MAX)
+        user_context = context.unsqueeze(1).expand(-1, user_tokens.size(1), -1)
+        offload = self.offload_body(torch.cat([user_tokens, user_context], dim=-1))
+        mean = torch.cat([self.mean_head(x),
+                          self.offload_mean_head(offload).squeeze(-1)], dim=1)
+        log_std = torch.cat([self.log_std_head(x),
+                             self.offload_log_std_head(offload).squeeze(-1)], dim=1)
+        log_std = log_std.clamp(LOG_SIG_MIN, LOG_SIG_MAX)
         return mean, log_std
 
-    def sample(self, state):
+    def sample(self, state, noise=None):
+        """Sample normalized proposals and their joint log-density.
+
+        Optional standard-normal noise supports paired permutation tests.
+        Offloading noise must follow the same user permutation as the inputs.
+        """
         mean, log_std = self.forward(state)
         std = log_std.exp()
         normal = Normal(mean, std)
-        x_t = normal.rsample()
+        if noise is not None and noise.shape != mean.shape:
+            raise ValueError("noise must have the same shape as the action mean")
+        x_t = normal.rsample() if noise is None else mean + std * noise
         action = torch.tanh(x_t) * ACTION_BOUND[1]
         log_prob = normal.log_prob(x_t)
         log_prob -= torch.log(1 - (action / ACTION_BOUND[1]).pow(2) + 1e-6)
+        # Sum over both the 3K movement and M offloading proposal dimensions.
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return action, log_prob, mean
 
@@ -410,14 +439,25 @@ class SACActor(nn.Module):
 # ★ V4: Attention-Enhanced Twin Critic
 # ==================================================================
 class TwinCritic(nn.Module):
-    """★ V4: Attention-Enhanced Twin Critic.
+    """Shared Critic-side TDA, separate user-action encoders and Q heads.
 
-    共享 UserAttention 编码器, 两个独立 Q 网络.
+    This TDA instance is independent of the Actor's encoder. Pair each user
+    token with its original normalized offloading proposal BEFORE pooling.
     """
     def __init__(self, s_dim, a_dim):
         super().__init__()
         self.user_attn = UserAttention()
-        combined_dim = UAV_FEAT_DIM + ATTENTION_EMBED_DIM + a_dim
+        if s_dim != STATE_DIM or a_dim != 3 * K + M:
+            raise ValueError("DARS dimensions must match the configured K and M")
+        self.pair_encoder1 = nn.Sequential(
+            nn.Linear(ATTENTION_EMBED_DIM + 1, ATTENTION_EMBED_DIM), nn.ReLU(),
+            nn.Linear(ATTENTION_EMBED_DIM, ATTENTION_EMBED_DIM), nn.ReLU(),
+        )
+        self.pair_encoder2 = nn.Sequential(
+            nn.Linear(ATTENTION_EMBED_DIM + 1, ATTENTION_EMBED_DIM), nn.ReLU(),
+            nn.Linear(ATTENTION_EMBED_DIM, ATTENTION_EMBED_DIM), nn.ReLU(),
+        )
+        combined_dim = UAV_FEAT_DIM + 3 * K + ATTENTION_EMBED_DIM
         # Q1
         self.fc1_1 = nn.Linear(combined_dim, HIDDEN_DIM_1)
         self.ln1_1 = nn.LayerNorm(HIDDEN_DIM_1)
@@ -433,7 +473,9 @@ class TwinCritic(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
-        for layer in [self.fc1_1, self.fc1_2, self.fc2_1, self.fc2_2]:
+        for layer in [self.fc1_1, self.fc1_2, self.fc2_1, self.fc2_2,
+                      self.pair_encoder1[0], self.pair_encoder1[2],
+                      self.pair_encoder2[0], self.pair_encoder2[2]]:
             nn.init.xavier_uniform_(layer.weight)
             nn.init.zeros_(layer.bias)
         for layer in [self.fc1_3, self.fc2_3]:
@@ -442,12 +484,17 @@ class TwinCritic(nn.Module):
 
     def forward(self, state, action):
         uav_feat, user_feat = decompose_state(state)
-        user_embed = self.user_attn(user_feat)
-        x = torch.cat([uav_feat, user_embed, action], dim=1)
-        q1 = torch.relu(self.ln1_1(self.fc1_1(x)))
+        user_tokens = self.user_attn.encode_users(user_feat)
+        pairs = torch.cat([user_tokens, action[:, 3*K:].unsqueeze(-1)], dim=-1)
+        context1 = self.pair_encoder1(pairs).mean(dim=1)
+        context2 = self.pair_encoder2(pairs).mean(dim=1)
+        global_input = torch.cat([uav_feat, action[:, :3*K]], dim=1)
+        x1 = torch.cat([global_input, context1], dim=1)
+        x2 = torch.cat([global_input, context2], dim=1)
+        q1 = torch.relu(self.ln1_1(self.fc1_1(x1)))
         q1 = torch.relu(self.ln1_2(self.fc1_2(q1)))
         q1 = self.fc1_3(q1)
-        q2 = torch.relu(self.ln2_1(self.fc2_1(x)))
+        q2 = torch.relu(self.ln2_1(self.fc2_1(x2)))
         q2 = torch.relu(self.ln2_2(self.fc2_2(q2)))
         q2 = self.fc2_3(q2)
         return q1, q2
@@ -614,10 +661,12 @@ class PERSACAgent:
             alpha_loss.backward()
             self.alpha_optimizer.step()
 
-            # ---- 软更新 target (与 actor 同步) ----
+        # Algorithm 1: update targets after every Critic update; only the
+        # Actor and entropy temperature use the delayed update schedule.
+        with torch.no_grad():
             for tp, sp in zip(self.critic_target.parameters(),
                               self.critic.parameters()):
-                tp.data.copy_(TAU_SOFT * sp.data + (1 - TAU_SOFT) * tp.data)
+                tp.mul_(1 - TAU_SOFT).add_(sp, alpha=TAU_SOFT)
 
         # 返回诊断指标
         return {
@@ -630,6 +679,7 @@ class PERSACAgent:
 
     def save(self, path):
         torch.save({
+            'architecture': getattr(self.actor, 'architecture', type(self.actor).__name__),
             'actor': self.actor.state_dict(),
             'critic': self.critic.state_dict(),
             'critic_target': self.critic_target.state_dict(),
@@ -637,7 +687,12 @@ class PERSACAgent:
         }, path)
 
     def load(self, path):
-        checkpoint = torch.load(path, map_location=DEVICE)
+        checkpoint = torch.load(path, map_location=DEVICE, weights_only=True)
+        expected = getattr(self.actor, 'architecture', type(self.actor).__name__)
+        if checkpoint.get('architecture', expected) != expected:
+            raise ValueError("Checkpoint architecture does not match this agent; retrain the revised model")
+        if isinstance(self.actor, SACActor) and 'offload_mean_head.weight' not in checkpoint['actor']:
+            raise ValueError("Legacy pooled-only Actor checkpoint: retrain with the user-wise DARS architecture")
         self.actor.load_state_dict(checkpoint['actor'])
         self.critic.load_state_dict(checkpoint['critic'])
         self.critic_target.load_state_dict(checkpoint['critic_target'])
