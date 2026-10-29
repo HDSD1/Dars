@@ -1,0 +1,146 @@
+[
+  {
+    "seed": 100000,
+    "horizon": 50,
+    "executed_steps": 50,
+    "attempted_steps": 50,
+    "survived": true,
+    "termination_reason": "horizon",
+    "reward": 354.6164971656117,
+    "slrr_executed": 0.2403620736311348,
+    "slrr_fixed_horizon": 0.2403620736311348,
+    "delay_executed": 10.958779524205973,
+    "min_battery_j": 14.581369186574648,
+    "min_battery_per_uav_j": [
+      83.60430419116187,
+      14.581369186574648
+    ],
+    "initial_battery_j": [
+      40000.0,
+      40000.0
+    ],
+    "final_battery_j": [
+      83.60430419116187,
+      14.581369186574648
+    ],
+    "mean_energy_per_executed_slot_j": 2740.5443610674515,
+    "decision_mean_ms": 0.3035640199777845,
+    "decision_p95_ms": 0.40367525014062267,
+    "decision_total_seconds": 0.015178200998889224,
+    "env_step_seconds": 0.021020646001943533,
+    "max_energy_violation_j": 0.0,
+    "movement_corrections": 0,
+    "offload_corrections": 0,
+    "rejected_steps": 0,
+    "energy_violation_steps": 0,
+    "energy_fly_j": 18165.24872344295,
+    "energy_fly_per_uav_j": [
+      8767.307064908544,
+      9397.941658534406
+    ],
+    "energy_hover_j": 117943.00000000001,
+    "energy_hover_per_uav_j": [
+      58971.50000000001,
+      58971.50000000001
+    ],
+    "energy_comp_j": 918.9693299296127,
+    "energy_comp_per_uav_j": [
+      399.2727769253832,
+      519.6965530042296
+    ],
+    "energy_out_j": 137027.21805337258,
+    "energy_out_per_uav_j": [
+      68138.07984183394,
+      68889.13821153864
+    ],
+    "energy_in_j": 57125.40372675032,
+    "energy_in_per_uav_j": [
+      28221.6841460251,
+      28903.71958072522
+    ],
+    "energy_charge_accepted_j": 57125.40372675032,
+    "energy_charge_accepted_per_uav_j": [
+      28221.6841460251,
+      28903.71958072522
+    ],
+    "energy_charge_overflow_j": 0.0,
+    "energy_charge_overflow_per_uav_j": [
+      0.0,
+      0.0
+    ],
+    "hotspot_schedule": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "hotspot_segments": [
+      {
+        "start": 0,
+        "phase": 1,
+        "duration": 15
+      },
+      {
+        "start": 15,
+        "phase": 2,
+        "duration": 16
+      },
+      {
+        "start": 31,
+        "phase": 0,
+        "duration": 18
+      },
+      {
+        "start": 49,
+        "phase": 1,
+        "duration": 19
+      }
+    ]
+  }
+]

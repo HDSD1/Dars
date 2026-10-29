@@ -15,7 +15,7 @@ import numpy as np
 
 from config import (
     K, M, STATE_DIM, ACTION_DIM, ACTION_BOUND,
-    GROUND_LENGTH, GROUND_WIDTH, E_BATTERY_INIT,
+    GROUND_LENGTH, GROUND_WIDTH, E_BATTERY_CAPACITY,
     V_MAX, T_FLY,
 )
 
@@ -25,6 +25,8 @@ class PriorityGreedyAgent:
 
     def __init__(self, s_dim=STATE_DIM, a_dim=ACTION_DIM,
                  battery_threshold=0.35, top_users=8):
+        self.expects_raw_state = True
+        self.battery_capacity = E_BATTERY_CAPACITY
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.battery_threshold = battery_threshold
@@ -37,6 +39,11 @@ class PriorityGreedyAgent:
         ], dtype=np.float64)
         self.ou_noise = type('', (), {'reset': lambda s: None})()
         self.buffer = type('', (), {'ready': lambda s, b: False})()
+
+    def configure_environment(self, env):
+        """Use the actual retained WCT nodes and physical battery capacity."""
+        self.wct_positions = env.wct_positions.copy()
+        self.battery_capacity = env.battery_capacity
 
     def _parse_state(self, state):
         idx = 0
@@ -95,7 +102,7 @@ class PriorityGreedyAgent:
         priority_users = set()
 
         for k in range(K):
-            battery_ratio = battery[k] / E_BATTERY_INIT if E_BATTERY_INIT > 0 else 1.0
+            battery_ratio = battery[k] / self.battery_capacity
             nearest_wct = self._nearest_wct(uav_pos[k])
             dist_to_wct = float(np.linalg.norm(nearest_wct - uav_pos[k]))
             # Return to WCT before the battery becomes critical. This makes the

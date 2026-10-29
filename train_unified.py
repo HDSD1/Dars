@@ -15,6 +15,13 @@ import os
 import sys
 import time
 import argparse
+import json
+import random
+import hashlib
+from pathlib import Path
+from experiment_config import EnvironmentConfig
+from evaluation import (EpisodeMetrics, evaluate_policy, write_json, runtime_info,
+                        jsonable, sync_device, configure_policy_environment)
 import numpy as np
 import torch
 
@@ -324,8 +331,26 @@ def _record_safety_stats(stats, info, elapsed):
 
 
 def run_experiment(algo_name, n_episodes, seed, tag='default',
-                   use_hotspot=False, disable_wct=False):
+                   use_hotspot=False, disable_wct=False, env_config=None,
+                   warmup_steps=None, batch_size=None, eval_episodes=50):
     """运行单个算法, 返回并保存结果."""
+    if not 0 < n_episodes < 100000 or not 0 <= eval_episodes < 100000 or not 0 <= seed < 2**32:
+        raise ValueError('Require 1..99999 training episodes, 0..99999 validation episodes and a uint32 seed')
+    if warmup_steps is not None and warmup_steps < 0:
+        raise ValueError('warmup_steps must be nonnegative')
+    if batch_size is not None and batch_size <= 0:
+        raise ValueError('batch_size must be positive')
+    env_config = env_config or EnvironmentConfig(hotspot_mode='diverse')
+    if env_config.hotspot_mode.startswith('unseen'):
+        raise ValueError('Held-out hotspot profiles cannot be used for training')
+    result_dir = Path(__file__).parent / 'results' / tag
+    result_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = result_dir / f'{algo_name}.manifest.json'
+    existing = [result_dir / f'{algo_name}{suffix}' for suffix in
+                ('.manifest.json', '.npz', '.pth', '.train.jsonl', '.validation.json')]
+    if any(path.exists() for path in existing):
+        raise FileExistsError(f'Run already exists for {algo_name} in {result_dir}; choose a new tag')
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
 
@@ -335,8 +360,15 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         env_kwargs['use_hotspot'] = True
     if disable_wct:
         env_kwargs['disable_wct'] = True
-    env = UAVEnv(**env_kwargs)
-    normalizer = StateNormalization()
+    env = UAVEnv(**env_kwargs, experiment_config=env_config, seed=seed)
+    normalizer = StateNormalization(env.battery_capacity)
+    configure_policy_environment(agent, env)
+    if batch_size is not None:
+        from DARS import PERSACAgent
+        if not isinstance(agent, PERSACAgent):
+            raise ValueError('--batch-size override currently supports DARS and its inherited ablations only')
+        agent.batch_size = batch_size
+    actual_batch_size = getattr(agent, 'batch_size', BATCH_SIZE)
 
     noise_std = EXPLORE_NOISE_INIT
     total_steps = 0
@@ -346,6 +378,34 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         actual_warmup_steps = min(2000, WARMUP_STEPS)
     else:
         actual_warmup_steps = WARMUP_STEPS
+
+    if warmup_steps is not None:
+        actual_warmup_steps = warmup_steps
+    import config as system_config
+    system_parameters = {k: v for k, v in vars(system_config).items() if k.isupper()}
+    source_hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                     for p in Path(__file__).parent.glob('*.py')}
+    agent_module = sys.modules[type(agent).__module__]
+    agent_parameters = {k: v for k, v in vars(agent_module).items()
+                        if k.isupper() and isinstance(v, (int, float, str, tuple, list))}
+    manifest = dict(schema_version=1, source_sha256=source_hashes,
+                    agent_parameters=agent_parameters, algorithm=algo_name, training_seed=seed,
+                    training_episode_seeds=[1000000 + seed * 100000 + ep for ep in range(n_episodes)],
+                    validation_seeds=list(range(100000, 100000 + eval_episodes)),
+                    environment=env_config.to_dict(), env_kwargs=env_kwargs,
+                    training=dict(episodes=n_episodes, warmup_steps=actual_warmup_steps,
+                                  batch_size=actual_batch_size),
+                    system_parameters=system_parameters, runtime=runtime_info(),
+                    status='running', timing_scope='preprocess+policy+safety+association+allocation',
+                    time_feature='min(elapsed_slots/time_reference_slots, 1)',
+                    validation_note='Same training hotspot distribution, independent seeds; not held-out test')
+    manifest['effective_agent_settings'] = {
+        'n_step': getattr(getattr(agent, 'n_step_buffer', None), 'n_step', None),
+        'lambda_surprise': getattr(agent.buffer, 'lambda_surprise', None),
+    }
+    write_json(manifest_path, manifest)
+    metrics_path = result_dir / f'{algo_name}.train.jsonl'
+    metrics_path.write_text('', encoding='utf-8')
 
     ep_rewards, avg_delays, avg_rhos, ep_survival_steps = [], [], [], []
     ep_avg_q, ep_avg_td_error, ep_critic_loss = [], [], []  # 训练诊断指标
@@ -358,7 +418,9 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
     print(f"{'='*58}")
 
     for ep in range(n_episodes):
-        state = env.reset()
+        episode_seed = manifest['training_episode_seeds'][ep]
+        state = env.reset(seed=episode_seed)
+        metrics = EpisodeMetrics(env, episode_seed)
         if hasattr(agent, 'ou_noise'):
             agent.ou_noise.reset()
 
@@ -367,24 +429,30 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         ep_d, ep_r = [], []
         step_q_vals, step_td_errors, step_critic_losses = [], [], []
 
-        for step in range(SLOT_NUM):
+        for step in range(env.slot_num):
+            sync_device()
+            policy_started = time.perf_counter()
             s_norm = normalizer.normalize(state)
 
             if needs_training and total_steps < actual_warmup_steps:
                 action = np.random.uniform(-1, 1, env.action_dim)
             else:
-                action = agent.select_action(s_norm, noise_std=noise_std, use_ou=True)
+                action = agent.select_action(state if getattr(agent, "expects_raw_state", False) else s_norm, noise_std=noise_std, use_ou=True)
 
+            sync_device()
+            policy_seconds = time.perf_counter() - policy_started
             # The critic and entropy are defined over this original proposal.
             proposal = np.asarray(action).copy()
             step_started = time.perf_counter()
             next_state, reward, done, info = env.step(proposal)
-            _record_safety_stats(safety_stats, info, time.perf_counter() - step_started)
+            env_seconds = time.perf_counter() - step_started
+            _record_safety_stats(safety_stats, info, env_seconds)
+            metrics.record(info, reward, policy_seconds, env_seconds)
             s_next_norm = normalizer.normalize(next_state)
 
             if needs_training:
                 agent.store(s_norm, proposal, reward, s_next_norm, done)
-                if total_steps >= actual_warmup_steps and agent.buffer.ready(BATCH_SIZE):
+                if total_steps >= actual_warmup_steps and agent.buffer.ready(actual_batch_size):
                     learn_info = agent.learn()
                     if learn_info is not None and isinstance(learn_info, dict):
                         step_q_vals.append(learn_info.get('avg_q', 0.0))
@@ -416,6 +484,11 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         if needs_training and total_steps >= actual_warmup_steps:
             noise_std = max(EXPLORE_NOISE_MIN, noise_std * EXPLORE_DECAY)
 
+        metrics_row = metrics.finish()
+        metrics_row['hotspot_schedule'] = env.hotspot_schedule[:env.slot_num].tolist()
+        metrics_row['hotspot_segments'] = env.hotspot_segments
+        with metrics_path.open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps(metrics_row, default=jsonable, allow_nan=False) + '\n')
         ep_rewards.append(ep_reward)
         avg_delays.append(np.mean(ep_d) if ep_d else 0.0)
         avg_rhos.append(np.mean(ep_r) if ep_r else 0.0)
@@ -438,36 +511,25 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
     total_time = time.time() - t_start
     print(f"  [{algo_name}] Done! {total_time:.0f}s ({total_time/60:.1f}min)")
 
-    # ★ 确定性评估 (关闭噪声, 验证真正收敛)
-    N_EVAL = 50
-    eval_rewards, eval_rhos, eval_survs = [], [], []
+    # Save before validation so a completed training run is recoverable.
     if needs_training:
-        print(f"  [{algo_name}] Running {N_EVAL} deterministic eval episodes...")
-        eval_env = UAVEnv(**env_kwargs)
-        for eval_ep in range(N_EVAL):
-            state = eval_env.reset()
-            safety_stats = _new_safety_stats()
-            ep_reward = 0.0
-            ep_r = []
-            for step in range(SLOT_NUM):
-                s_norm = normalizer.normalize(state)
-                action = agent.select_action(s_norm, noise_std=0.0)  # ★ 无噪声
-                step_started = time.perf_counter()
-                next_state, reward, done, info = eval_env.step(action)
-                _record_safety_stats(safety_stats, info, time.perf_counter() - step_started)
-                state = next_state
-                ep_reward += reward
-                if info['action_executed']:
-                    ep_r.append(info['rho_mean'])
-                if done:
-                    break
-            eval_rewards.append(ep_reward)
-            eval_rhos.append(np.mean(ep_r) if ep_r else 0.0)
-            eval_survs.append(safety_stats['executed_steps'])
-            eval_safety_history.append(safety_stats.copy())
-        print(f"  [{algo_name}] Eval: R={np.mean(eval_rewards):.2f}±{np.std(eval_rewards):.2f} | "
-              f"ρ={np.mean(eval_rhos):.4f}±{np.std(eval_rhos):.4f} | "
-              f"Surv={np.mean(eval_survs):.1f}±{np.std(eval_survs):.1f}")
+        agent.save(str(result_dir / f'{algo_name}.pth'))
+    validation_rows = []
+    if eval_episodes:
+        validation_rows = evaluate_policy(agent, env_config, env_kwargs,
+                                          manifest['validation_seeds'], keep_trace=False)
+        write_json(result_dir / f'{algo_name}.validation.json', validation_rows)
+    eval_rewards = [row['reward'] for row in validation_rows]
+    eval_rhos = [row['slrr_executed'] if row['slrr_executed'] is not None else 0.0 for row in validation_rows]
+    eval_survs = [row['executed_steps'] for row in validation_rows]
+    for row in validation_rows:
+        eval_safety_history.append({key: row.get(key, row.get('max_energy_violation_j', 0.0)
+                                                if key == 'max_energy_violation' else 0)
+                                    for key in _new_safety_stats()})
+    manifest.update(status='completed', training_seconds=total_time,
+                    attempted_training_steps=total_steps,
+                    gradient_updates=getattr(agent, 'learn_step', None))
+    write_json(manifest_path, manifest)
 
     # 保存结果 → results/<tag>/<algo>.npz
     result_dir = os.path.join(os.path.dirname(__file__), "results", tag)
@@ -502,10 +564,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
              **safety_arrays)
     print(f"  Saved: {save_path}")
 
-    # 保存模型
     if needs_training:
-        model_path = os.path.join(result_dir, f"{algo_name}.pth")
-        agent.save(model_path)
+        model_path = os.path.join(result_dir, f'{algo_name}.pth')
         print(f"  Model: {model_path}")
 
     return {
@@ -531,10 +591,18 @@ def main():
     parser.add_argument('--tag', type=str, default='exp',
                         help='实验标签 (用于区分不同批次的实验)')
     parser.add_argument('--hotspot', action='store_true',
-                        help='启用热点轮转 (3阶段热/冷簇)')
+                        help='启用热点任务；具体规则由 --env-config 指定')
     parser.add_argument('--nowct', action='store_true',
                         help='关闭 WCT 充电 (消融实验)')
+    parser.add_argument('--env-config', help='JSON EnvironmentConfig; default: diverse hotspot training')
+    parser.add_argument('--warmup-steps', type=int, default=None)
+    parser.add_argument('--batch-size', type=int, default=None, help='DARS/ablation override; defaults unchanged')
+    parser.add_argument('--eval-episodes', type=int, default=50, help='Independent validation episodes')
+    parser.add_argument('--threads', type=int, default=None)
     args = parser.parse_args()
+    if args.threads is not None:
+        torch.set_num_threads(args.threads)
+    env_config = EnvironmentConfig.from_json(args.env_config) if args.env_config else EnvironmentConfig(hotspot_mode='diverse')
 
     # 解析算法列表
     if args.algo == 'all':
@@ -561,7 +629,9 @@ def main():
     for i, algo in enumerate(algo_list):
         print(f"\n>>> [{i+1}/{len(algo_list)}] {algo.upper()}")
         res = run_experiment(algo, args.episodes, args.seed, args.tag,
-                             use_hotspot=args.hotspot, disable_wct=args.nowct)
+                             use_hotspot=args.hotspot, disable_wct=args.nowct,
+                             env_config=env_config, warmup_steps=args.warmup_steps,
+                             batch_size=args.batch_size, eval_episodes=args.eval_episodes)
         results.append(res)
 
     # 汇总

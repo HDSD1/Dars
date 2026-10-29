@@ -53,9 +53,10 @@ def evaluate(agent, use_cvx_alloc, episodes, seed):
             state, reward, done, info = env.step(action)
 
             ep_reward += reward
-            ep_rhos.append(info["rho_mean"])
-            ep_delays.append(info["delay_active_mean"])
-            steps = step + 1
+            if info['action_executed']:
+                ep_rhos.append(info["rho_mean"])
+                ep_delays.append(info["delay_active_mean"])
+                steps += 1
             if done:
                 break
 

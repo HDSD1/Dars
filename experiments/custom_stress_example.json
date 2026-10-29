@@ -1,0 +1,9 @@
+{
+  "in_distribution": {},
+  "low_initial_energy": {"initial_energy": 20000.0},
+  "long_horizon": {"horizon": 200},
+  "two_chargers": {"wct_indices": [0, 2]},
+  "low_charge_power": {"wct_power": 160.0},
+  "heldout_order": {"hotspot_mode": "unseen_order"},
+  "heldout_timing": {"hotspot_mode": "unseen_timing"}
+}

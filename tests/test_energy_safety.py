@@ -166,7 +166,7 @@ class EnergySafetyTests(unittest.TestCase):
         e = environment()
         e.disable_wct = False
         e.loc_uav[:] = e.wct_positions[0]
-        with patch.object(env_module, 'N_WCT', 1), patch.object(env_module, 'P_MAX_WCT', 1.0):
+        with patch.object(e, 'n_wct', 1), patch.object(e, 'wct_power', 1.0):
             _, _, charge, _, _, _ = e._movement_energy_state(np.zeros(cfg.K), np.zeros(cfg.K))
         np.testing.assert_allclose(charge, np.full(cfg.K, 1.0/cfg.K))
 

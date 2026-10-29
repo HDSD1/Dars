@@ -10,7 +10,7 @@ import numpy as np
 import math
 from config import (
     K, M, H, N_WCT, STATE_DIM, ACTION_DIM, ACTION_BOUND,
-    GROUND_LENGTH, GROUND_WIDTH, E_BATTERY_INIT,
+    GROUND_LENGTH, GROUND_WIDTH, E_BATTERY_CAPACITY,
 )
 
 
@@ -19,6 +19,8 @@ class GreedyAgent:
 
     def __init__(self, s_dim=STATE_DIM, a_dim=ACTION_DIM,
                  battery_threshold=0.3, offload_ratio=1.0):
+        self.expects_raw_state = True
+        self.battery_capacity = E_BATTERY_CAPACITY
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.battery_threshold = battery_threshold
@@ -33,6 +35,11 @@ class GreedyAgent:
         # 接口兼容
         self.ou_noise = type('', (), {'reset': lambda s: None})()
         self.buffer = type('', (), {'ready': lambda s, b: False})()
+
+    def configure_environment(self, env):
+        """Use the actual retained WCT nodes and physical battery capacity."""
+        self.wct_positions = env.wct_positions.copy()
+        self.battery_capacity = env.battery_capacity
 
     def _parse_state(self, state):
         """从 state 向量中提取 UAV 位置、电量、用户位置、active_mask."""
@@ -65,7 +72,7 @@ class GreedyAgent:
         action = np.zeros(self.a_dim)
 
         for k in range(K):
-            batt_ratio = battery[k] / E_BATTERY_INIT if E_BATTERY_INIT > 0 else 1.0
+            batt_ratio = battery[k] / self.battery_capacity
 
             if batt_ratio <= self.battery_threshold:
                 # 低电量 → 飞向最近 WCT

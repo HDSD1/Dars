@@ -1,0 +1,14 @@
+greedy_cvx seed=42 in_distribution: survival=0.000, SLRR(T)=0.2120, Bmin=321.08 J
+greedy_cvx seed=42 low_initial_energy: survival=0.000, SLRR(T)=0.1026, Bmin=5.25 J
+greedy_cvx seed=42 long_horizon: survival=0.000, SLRR(T)=0.0530, Bmin=321.08 J
+greedy_cvx seed=42 two_chargers: survival=0.000, SLRR(T)=0.1690, Bmin=0.00 J
+greedy_cvx seed=42 low_charge_power: survival=0.000, SLRR(T)=0.2041, Bmin=212.90 J
+greedy_cvx seed=42 heldout_order: survival=0.000, SLRR(T)=0.2049, Bmin=0.00 J
+greedy_cvx seed=42 heldout_timing: survival=1.000, SLRR(T)=0.2205, Bmin=32.44 J
+priority_greedy_cvx seed=42 in_distribution: survival=0.000, SLRR(T)=0.2113, Bmin=218.16 J
+priority_greedy_cvx seed=42 low_initial_energy: survival=1.000, SLRR(T)=0.1920, Bmin=9358.98 J
+priority_greedy_cvx seed=42 long_horizon: survival=0.000, SLRR(T)=0.0528, Bmin=218.16 J
+priority_greedy_cvx seed=42 two_chargers: survival=0.000, SLRR(T)=0.1504, Bmin=521.97 J
+priority_greedy_cvx seed=42 low_charge_power: survival=0.000, SLRR(T)=0.2073, Bmin=321.58 J
+priority_greedy_cvx seed=42 heldout_order: survival=0.000, SLRR(T)=0.1444, Bmin=145.02 J
+priority_greedy_cvx seed=42 heldout_timing: survival=0.000, SLRR(T)=0.2224, Bmin=246.52 J

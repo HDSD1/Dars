@@ -589,14 +589,14 @@ class PERSACAgent:
             self.n_step_buffer.reset()
 
     def learn(self):
-        if not self.buffer.ready(BATCH_SIZE):
+        if not self.buffer.ready(getattr(self, "batch_size", BATCH_SIZE)):
             return {}
 
         self.learn_step += 1
 
         # PER 采样 (带 IS 权重)
         states, actions, rewards, next_states, dones, is_weights, tree_indices = \
-            self.buffer.sample(BATCH_SIZE)
+            self.buffer.sample(getattr(self, "batch_size", BATCH_SIZE))
 
         # ---- Critic 更新 ----
         with torch.no_grad():

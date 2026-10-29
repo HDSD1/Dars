@@ -1,0 +1,8 @@
+per_sac_cvx seed=42 in_distribution: survival=0.000, SLRR(T)=0.1156, Bmin=531.43 J
+per_sac_cvx seed=42 initial_20000: survival=0.000, SLRR(T)=0.0734, Bmin=557.67 J
+per_sac_cvx seed=42 horizon_100: survival=0.000, SLRR(T)=0.0578, Bmin=531.43 J
+per_sac_cvx seed=42 wct_0_2: survival=0.000, SLRR(T)=0.1162, Bmin=608.20 J
+per_sac_cvx seed=42 power_100: survival=0.000, SLRR(T)=0.1156, Bmin=531.96 J
+per_sac_cvx seed=42 joint: survival=0.000, SLRR(T)=0.0377, Bmin=298.44 J
+per_sac_cvx seed=42 unseen_order: survival=0.000, SLRR(T)=0.1018, Bmin=377.14 J
+per_sac_cvx seed=42 unseen_timing: survival=0.000, SLRR(T)=0.1227, Bmin=531.67 J

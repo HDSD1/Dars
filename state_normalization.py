@@ -1,11 +1,11 @@
 """状态归一化 V4."""
 import numpy as np
-from config import K, M, STATE_DIM, E_BATTERY_INIT, GROUND_LENGTH, GROUND_WIDTH, TASK_MAX, N_WCT
+from config import K, M, STATE_DIM, E_BATTERY_CAPACITY, GROUND_LENGTH, GROUND_WIDTH, TASK_MAX, N_WCT
 
 class StateNormalization:
-    def __init__(self):
+    def __init__(self, battery_capacity=E_BATTERY_CAPACITY):
         high = []
-        high.extend([E_BATTERY_INIT] * K)
+        high.extend([battery_capacity] * K)
         for _ in range(K):
             high.extend([GROUND_LENGTH, GROUND_WIDTH])
         for _ in range(M):

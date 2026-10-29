@@ -1,0 +1,2447 @@
+{
+  "summary": {
+    "episodes": 1,
+    "survival_probability": 0.0,
+    "survival_wilson95": [
+      0.0,
+      0.7934506856227626
+    ],
+    "executed_steps": {
+      "mean": 40.0,
+      "std": null,
+      "count": 1
+    },
+    "min_battery_j": {
+      "mean": 145.0175656087922,
+      "std": null,
+      "count": 1
+    },
+    "slrr_executed": {
+      "mean": 0.18047638865165733,
+      "std": null,
+      "count": 1
+    },
+    "slrr_fixed_horizon": {
+      "mean": 0.14438111092132588,
+      "std": null,
+      "count": 1
+    },
+    "delay_executed": {
+      "mean": 11.82842501246348,
+      "std": null,
+      "count": 1
+    },
+    "energy_out_j": {
+      "mean": 111924.77397932176,
+      "std": null,
+      "count": 1
+    },
+    "mean_energy_per_executed_slot_j": {
+      "mean": 2798.119349483044,
+      "std": null,
+      "count": 1
+    },
+    "decision_mean_ms": {
+      "mean": 1.4255330731718525,
+      "std": null,
+      "count": 1
+    },
+    "decision_p95_ms": {
+      "mean": 0.8297910003420839,
+      "std": null,
+      "count": 1
+    },
+    "worst_min_battery_j": 145.0175656087922,
+    "rejected_steps": 1,
+    "energy_violation_steps": 0,
+    "max_energy_violation_j": 0.0,
+    "termination_reasons": {
+      "safety_filter_no_feasible_candidate": 1
+    },
+    "case": "heldout_order",
+    "algorithm": "priority_greedy_cvx",
+    "training_seed": 42,
+    "model_index": 1,
+    "environment": {
+      "battery_capacity": 40000.0,
+      "initial_energy": 40000.0,
+      "horizon": 50,
+      "wct_indices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "wct_power": 200.0,
+      "hotspot_mode": "unseen_order",
+      "hotspot_reference_slots": 50,
+      "time_reference_slots": 50,
+      "train_orders": [
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          1,
+          2,
+          0
+        ],
+        [
+          2,
+          0,
+          1
+        ]
+      ],
+      "test_orders": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          2
+        ]
+      ],
+      "train_dwell": [
+        12,
+        20
+      ],
+      "test_dwell_ranges": [
+        [
+          4,
+          8
+        ],
+        [
+          24,
+          32
+        ]
+      ]
+    }
+  },
+  "episodes": [
+    {
+      "seed": 200000,
+      "horizon": 50,
+      "executed_steps": 40,
+      "attempted_steps": 41,
+      "survived": false,
+      "termination_reason": "safety_filter_no_feasible_candidate",
+      "reward": 211.0209425334801,
+      "slrr_executed": 0.18047638865165733,
+      "slrr_fixed_horizon": 0.14438111092132588,
+      "delay_executed": 11.82842501246348,
+      "min_battery_j": 145.0175656087922,
+      "min_battery_per_uav_j": [
+        403.04416732066943,
+        145.0175656087922
+      ],
+      "initial_battery_j": [
+        40000.0,
+        40000.0
+      ],
+      "final_battery_j": [
+        403.04416732066943,
+        145.0175656087922
+      ],
+      "mean_energy_per_executed_slot_j": 2798.119349483044,
+      "decision_mean_ms": 1.4255330731718525,
+      "decision_p95_ms": 0.8297910003420839,
+      "decision_total_seconds": 0.058446856000045955,
+      "env_step_seconds": 0.05762857499939855,
+      "max_energy_violation_j": 0.0,
+      "movement_corrections": 0,
+      "offload_corrections": 0,
+      "rejected_steps": 1,
+      "energy_violation_steps": 0,
+      "energy_fly_j": 17040.536250436828,
+      "energy_fly_per_uav_j": [
+        8504.968991281285,
+        8535.567259155543
+      ],
+      "energy_hover_j": 94354.40000000001,
+      "energy_hover_per_uav_j": [
+        47177.200000000004,
+        47177.200000000004
+      ],
+      "energy_comp_j": 529.8377288849306,
+      "energy_comp_per_uav_j": [
+        253.8154396440616,
+        276.022289240869
+      ],
+      "energy_out_j": 111924.77397932176,
+      "energy_out_per_uav_j": [
+        55935.98443092535,
+        55988.7895483964
+      ],
+      "energy_in_j": 32472.83571225124,
+      "energy_in_per_uav_j": [
+        16339.028598246032,
+        16133.807114005205
+      ],
+      "energy_charge_accepted_j": 32472.83571225124,
+      "energy_charge_accepted_per_uav_j": [
+        16339.028598246032,
+        16133.807114005205
+      ],
+      "energy_charge_overflow_j": 0.0,
+      "energy_charge_overflow_per_uav_j": [
+        0.0,
+        0.0
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            40000.0,
+            40000.0
+          ],
+          "battery_after_flight": [
+            39751.04320883576,
+            39751.04320883576
+          ],
+          "battery_after_service": [
+            38565.85158063397,
+            38562.54670224737
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            5.761628201790215,
+            9.066506588394818
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.2308349583913229,
+          "termination_reason": null
+        },
+        {
+          "step": 2,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            38565.85158063397,
+            38562.54670224737
+          ],
+          "battery_after_flight": [
+            38316.894789469734,
+            38313.58991108313
+          ],
+          "battery_after_service": [
+            37134.28416394118,
+            37112.15347373841
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            3.180625528555967,
+            22.006437344714474
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.29769307577416104,
+          "termination_reason": null
+        },
+        {
+          "step": 3,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            37134.28416394118,
+            37112.15347373841
+          ],
+          "battery_after_flight": [
+            36885.32737277694,
+            36863.19668257418
+          ],
+          "battery_after_service": [
+            35702.75156954237,
+            35676.53936405556
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            3.145803234571458,
+            7.2273185186137425
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.3121929904453566,
+          "termination_reason": null
+        },
+        {
+          "step": 4,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            35702.75156954237,
+            35676.53936405556
+          ],
+          "battery_after_flight": [
+            35453.794778378135,
+            35427.582572891326
+          ],
+          "battery_after_service": [
+            34461.218948750284,
+            34394.42581951466
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            7.749485105934664,
+            7.665193669975243
+          ],
+          "energy_in": [
+            194.6036554780886,
+            153.93844029331407
+          ],
+          "energy_charge_accepted": [
+            194.6036554780886,
+            153.93844029331407
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.2746500796951888,
+          "termination_reason": null
+        },
+        {
+          "step": 5,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            34461.218948750284,
+            34394.42581951466
+          ],
+          "battery_after_flight": [
+            34212.26215758605,
+            34145.469028350424
+          ],
+          "battery_after_service": [
+            33331.32026145906,
+            33218.83419773288
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.356677261178606,
+            8.329405362223973
+          ],
+          "energy_in": [
+            302.8447811341966,
+            261.12457474467874
+          ],
+          "energy_charge_accepted": [
+            302.8447811341966,
+            261.12457474467874
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.32335453566946576,
+          "termination_reason": null
+        },
+        {
+          "step": 6,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            33331.32026145906,
+            33218.83419773288
+          ],
+          "battery_after_flight": [
+            33101.70975306499,
+            32969.877406568645
+          ],
+          "battery_after_service": [
+            32303.9216160246,
+            32141.142441644
+          ],
+          "energy_fly": [
+            229.61050839407267,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            3.853204104927164,
+            7.883462639548922
+          ],
+          "energy_in": [
+            385.4950670645322,
+            358.57849771490123
+          ],
+          "energy_charge_accepted": [
+            385.4950670645322,
+            358.57849771490123
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.35376992754778325,
+          "termination_reason": null
+        },
+        {
+          "step": 7,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            32303.9216160246,
+            32141.142441644
+          ],
+          "battery_after_flight": [
+            32174.850133844546,
+            32014.792761532823
+          ],
+          "battery_after_service": [
+            31272.3774038203,
+            31103.991461190235
+          ],
+          "energy_fly": [
+            129.07148218005548,
+            126.34968011117758
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            7.947806287461371,
+            3.6714636763541413
+          ],
+          "energy_in": [
+            284.9050762632186,
+            272.3001633337679
+          ],
+          "energy_charge_accepted": [
+            284.9050762632186,
+            272.3001633337679
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.3355087363292175,
+          "termination_reason": null
+        },
+        {
+          "step": 8,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            31272.3774038203,
+            31103.991461190235
+          ],
+          "battery_after_flight": [
+            31023.42061265606,
+            30855.034670025994
+          ],
+          "battery_after_service": [
+            30107.534727309656,
+            29936.41315671351
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.391620773096461,
+            8.216876350425231
+          ],
+          "energy_in": [
+            267.93573542669236,
+            269.0253630379409
+          ],
+          "energy_charge_accepted": [
+            267.93573542669236,
+            269.0253630379409
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.2708173853195438,
+          "termination_reason": null
+        },
+        {
+          "step": 9,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            30107.534727309656,
+            29936.41315671351
+          ],
+          "battery_after_flight": [
+            29858.577936145415,
+            29687.456365549268
+          ],
+          "battery_after_service": [
+            29101.916827157525,
+            28923.761921346828
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            5.95603707944627,
+            8.155857689038383
+          ],
+          "energy_in": [
+            428.724928091555,
+            423.89141348659825
+          ],
+          "energy_charge_accepted": [
+            428.724928091555,
+            423.89141348659825
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.30172570344405036,
+          "termination_reason": null
+        },
+        {
+          "step": 10,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            29101.916827157525,
+            28923.761921346828
+          ],
+          "battery_after_flight": [
+            28852.960035993285,
+            28674.805130182587
+          ],
+          "battery_after_service": [
+            28379.273335473707,
+            28179.33554414847
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.453056630048258,
+            5.843229923646494
+          ],
+          "energy_in": [
+            710.1963561104706,
+            689.8036438895294
+          ],
+          "energy_charge_accepted": [
+            710.1963561104706,
+            689.8036438895294
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.3888699121174249,
+          "termination_reason": null
+        },
+        {
+          "step": 11,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            28379.273335473707,
+            28179.33554414847
+          ],
+          "battery_after_flight": [
+            28236.6285098114,
+            28024.800567859573
+          ],
+          "battery_after_service": [
+            27576.944075047384,
+            27349.27160388028
+          ],
+          "energy_fly": [
+            142.64482566230728,
+            154.534976288897
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            5.753360287632477,
+            5.320529716148738
+          ],
+          "energy_in": [
+            525.4989255236193,
+            509.2215657368538
+          ],
+          "energy_charge_accepted": [
+            525.4989255236193,
+            509.2215657368538
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.3407005584002375,
+          "termination_reason": null
+        },
+        {
+          "step": 12,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            27576.944075047384,
+            27349.27160388028
+          ],
+          "battery_after_flight": [
+            27327.987283883143,
+            27100.31481271604
+          ],
+          "battery_after_service": [
+            26855.608064109892,
+            26586.19117903219
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            3.8302538379114672,
+            23.81259961918844
+          ],
+          "energy_in": [
+            710.881034064659,
+            689.118965935341
+          ],
+          "energy_charge_accepted": [
+            710.881034064659,
+            689.118965935341
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.2663757219550648,
+          "termination_reason": null
+        },
+        {
+          "step": 13,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            26855.608064109892,
+            26586.19117903219
+          ],
+          "battery_after_flight": [
+            26606.65127294565,
+            26337.23438786795
+          ],
+          "battery_after_service": [
+            25910.788230721522,
+            25630.605747255027
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            5.39854709763234,
+            3.6876123246007193
+          ],
+          "energy_in": [
+            488.9655048735033,
+            476.488971711678
+          ],
+          "energy_charge_accepted": [
+            488.9655048735033,
+            476.488971711678
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.35893828755020807,
+          "termination_reason": null
+        },
+        {
+          "step": 14,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            25910.788230721522,
+            25630.605747255027
+          ],
+          "battery_after_flight": [
+            25778.427245132538,
+            25495.87168874476
+          ],
+          "battery_after_service": [
+            25299.175393410645,
+            25005.432087932008
+          ],
+          "energy_fly": [
+            132.36098558898289,
+            134.73405851026857
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            2.973668425345073,
+            7.857784109294788
+          ],
+          "energy_in": [
+            703.1518167034537,
+            696.848183296546
+          ],
+          "energy_charge_accepted": [
+            703.1518167034537,
+            696.848183296546
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.37439461862933854,
+          "termination_reason": null
+        },
+        {
+          "step": 15,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            25299.175393410645,
+            25005.432087932008
+          ],
+          "battery_after_flight": [
+            25050.218602246405,
+            24756.475296767767
+          ],
+          "battery_after_service": [
+            24297.490249707414,
+            24001.099607339514
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.15628450619957,
+            5.9070519941406
+          ],
+          "energy_in": [
+            430.85793196721073,
+            429.9613625658888
+          ],
+          "energy_charge_accepted": [
+            430.85793196721073,
+            429.9613625658888
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.31185831692386906,
+          "termination_reason": null
+        },
+        {
+          "step": 16,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            24297.490249707414,
+            24001.099607339514
+          ],
+          "battery_after_flight": [
+            24164.609108030505,
+            23868.446009279272
+          ],
+          "battery_after_service": [
+            23288.59563243658,
+            22990.522671939383
+          ],
+          "energy_fly": [
+            132.88114167691018,
+            132.65359806024324
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            5.802336505962806,
+            7.388738537946789
+          ],
+          "energy_in": [
+            309.21886091203805,
+            308.89540119805696
+          ],
+          "energy_charge_accepted": [
+            309.21886091203805,
+            308.89540119805696
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.34227818307968155,
+          "termination_reason": null
+        },
+        {
+          "step": 17,
+          "action_executed": true,
+          "hotspot_phase": 0,
+          "battery_before": [
+            23288.59563243658,
+            22990.522671939383
+          ],
+          "battery_after_flight": [
+            23087.340850838762,
+            22789.323254494495
+          ],
+          "battery_after_service": [
+            22365.912968445777,
+            22051.500069025336
+          ],
+          "energy_fly": [
+            201.25478159781613,
+            201.19941744488682
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            7.213215481094012,
+            23.23337643621729
+          ],
+          "energy_in": [
+            465.2153330881096,
+            464.840190967056
+          ],
+          "energy_charge_accepted": [
+            465.2153330881096,
+            464.840190967056
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.24866323059992573,
+          "termination_reason": null
+        },
+        {
+          "step": 18,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            22365.912968445777,
+            22051.500069025336
+          ],
+          "battery_after_flight": [
+            22116.956177281536,
+            21802.543277861096
+          ],
+          "battery_after_service": [
+            21284.528873121504,
+            20990.471300453977
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            20.60234635318163,
+            0.0
+          ],
+          "energy_in": [
+            367.60504219315203,
+            367.35802259288107
+          ],
+          "energy_charge_accepted": [
+            367.60504219315203,
+            367.35802259288107
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.05797656508888928,
+          "termination_reason": null
+        },
+        {
+          "step": 19,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            21284.528873121504,
+            20990.471300453977
+          ],
+          "battery_after_flight": [
+            21035.572081957263,
+            20741.514509289736
+          ],
+          "battery_after_service": [
+            20059.333362829922,
+            19754.92976243792
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            11.842614654295414,
+            22.089203994431426
+          ],
+          "energy_in": [
+            215.0338955269553,
+            214.93445714261637
+          ],
+          "energy_charge_accepted": [
+            215.0338955269553,
+            214.93445714261637
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.2143613547067625,
+          "termination_reason": null
+        },
+        {
+          "step": 20,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            20059.333362829922,
+            19754.92976243792
+          ],
+          "battery_after_flight": [
+            19810.37657166568,
+            19505.97297127368
+          ],
+          "battery_after_service": [
+            18609.0850271545,
+            18326.54297127368
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            21.8615445111827,
+            0.0
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.05848603674614629,
+          "termination_reason": null
+        },
+        {
+          "step": 21,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            18609.0850271545,
+            18326.54297127368
+          ],
+          "battery_after_flight": [
+            18360.128235990258,
+            18077.58618010944
+          ],
+          "battery_after_service": [
+            17172.619293483378,
+            16898.15618010944
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            8.078942506878178,
+            0.0
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.16435846031987586,
+          "termination_reason": null
+        },
+        {
+          "step": 22,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            17172.619293483378,
+            16898.15618010944
+          ],
+          "battery_after_flight": [
+            16923.662502319137,
+            16649.1993889452
+          ],
+          "battery_after_service": [
+            15732.059810990224,
+            15457.436259289414
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            12.172691328913078,
+            12.333129655784058
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.14738104050566744,
+          "termination_reason": null
+        },
+        {
+          "step": 23,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            15732.059810990224,
+            15457.436259289414
+          ],
+          "battery_after_flight": [
+            15483.103019825985,
+            15208.479468125175
+          ],
+          "battery_after_service": [
+            14303.673019825985,
+            14021.940486773676
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            7.108981351498244
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.08298838110266,
+          "termination_reason": null
+        },
+        {
+          "step": 24,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            14303.673019825985,
+            14021.940486773676
+          ],
+          "battery_after_flight": [
+            14054.716228661746,
+            13772.983695609437
+          ],
+          "battery_after_service": [
+            12862.712878141443,
+            12582.08304132468
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            12.573350520302018,
+            11.470654284755533
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.22630273690927064,
+          "termination_reason": null
+        },
+        {
+          "step": 25,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            12862.712878141443,
+            12582.08304132468
+          ],
+          "battery_after_flight": [
+            12613.756086977204,
+            12333.126250160441
+          ],
+          "battery_after_service": [
+            11426.964232377799,
+            11140.444293317672
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            7.361854599404681,
+            13.251956842768863
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.10752009700979845,
+          "termination_reason": null
+        },
+        {
+          "step": 26,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            11426.964232377799,
+            11140.444293317672
+          ],
+          "battery_after_flight": [
+            11178.00744121356,
+            10891.487502153434
+          ],
+          "battery_after_service": [
+            10157.197236251423,
+            9870.415010614111
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            14.42014218922007,
+            14.650395487987566
+          ],
+          "energy_in": [
+            173.0399372270817,
+            173.0079039486672
+          ],
+          "energy_charge_accepted": [
+            173.0399372270817,
+            173.0079039486672
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.07752226404953287,
+          "termination_reason": null
+        },
+        {
+          "step": 27,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            10157.197236251423,
+            9870.415010614111
+          ],
+          "battery_after_flight": [
+            9908.240445087184,
+            9621.458219449873
+          ],
+          "battery_after_service": [
+            9026.650559674705,
+            8739.62870804617
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            14.859751204309465,
+            15.025632774007091
+          ],
+          "energy_in": [
+            312.69986579183,
+            312.6261213703046
+          ],
+          "energy_charge_accepted": [
+            312.69986579183,
+            312.6261213703046
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.07282591673570092,
+          "termination_reason": null
+        },
+        {
+          "step": 28,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            9026.650559674705,
+            8739.62870804617
+          ],
+          "battery_after_flight": [
+            8777.693768510466,
+            8490.67191688193
+          ],
+          "battery_after_service": [
+            8253.474336060868,
+            7973.145198439677
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            6.884872736101347,
+            0.0
+          ],
+          "energy_in": [
+            662.0954402865042,
+            661.9032815577468
+          ],
+          "energy_charge_accepted": [
+            662.0954402865042,
+            661.9032815577468
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.06684001085469152,
+          "termination_reason": null
+        },
+        {
+          "step": 29,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            8253.474336060868,
+            7973.145198439677
+          ],
+          "battery_after_flight": [
+            8004.517544896628,
+            7724.188407275437
+          ],
+          "battery_after_service": [
+            7525.1469554157875,
+            7229.880106407114
+          ],
+          "energy_fly": [
+            248.9567911642395,
+            248.9567911642395
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            14.818890349163373
+          ],
+          "energy_in": [
+            700.0594105191597,
+            699.9405894808405
+          ],
+          "energy_charge_accepted": [
+            700.0594105191597,
+            699.9405894808405
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.04525142121527698,
+          "termination_reason": null
+        },
+        {
+          "step": 30,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            7525.1469554157875,
+            7229.880106407114
+          ],
+          "battery_after_flight": [
+            7398.907886012156,
+            7103.647565608793
+          ],
+          "battery_after_service": [
+            6919.477886012156,
+            6624.217565608793
+          ],
+          "energy_fly": [
+            126.23906940363135,
+            126.23254079832088
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.0,
+          "termination_reason": null
+        },
+        {
+          "step": 31,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            6919.477886012156,
+            6624.217565608793
+          ],
+          "battery_after_flight": [
+            6750.987886012156,
+            6455.727565608793
+          ],
+          "battery_after_service": [
+            6271.557886012156,
+            5976.297565608793
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.0,
+          "termination_reason": null
+        },
+        {
+          "step": 32,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            6271.557886012156,
+            5976.297565608793
+          ],
+          "battery_after_flight": [
+            6103.067886012156,
+            5807.807565608793
+          ],
+          "battery_after_service": [
+            5617.035218478304,
+            5328.377565608793
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            6.602667533851616,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.07031236446038622,
+          "termination_reason": null
+        },
+        {
+          "step": 33,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            5617.035218478304,
+            5328.377565608793
+          ],
+          "battery_after_flight": [
+            5448.545218478304,
+            5159.887565608793
+          ],
+          "battery_after_service": [
+            4969.115218478304,
+            4680.457565608793
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.0,
+          "termination_reason": null
+        },
+        {
+          "step": 34,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            4969.115218478304,
+            4680.457565608793
+          ],
+          "battery_after_flight": [
+            4800.625218478304,
+            4511.967565608793
+          ],
+          "battery_after_service": [
+            4308.453218611819,
+            4032.5375656087926
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            12.741999866485253,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.03483521691876477,
+          "termination_reason": null
+        },
+        {
+          "step": 35,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            4308.453218611819,
+            4032.5375656087926
+          ],
+          "battery_after_flight": [
+            4139.963218611819,
+            3864.047565608793
+          ],
+          "battery_after_service": [
+            3655.9402734456357,
+            3384.6175656087926
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.592945166182879,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.1144048129158634,
+          "termination_reason": null
+        },
+        {
+          "step": 36,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            3655.9402734456357,
+            3384.6175656087926
+          ],
+          "battery_after_flight": [
+            3487.4502734456355,
+            3216.127565608793
+          ],
+          "battery_after_service": [
+            3004.409868669753,
+            2736.6975656087925
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            3.610404775882288,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.14356581248464353,
+          "termination_reason": null
+        },
+        {
+          "step": 37,
+          "action_executed": true,
+          "hotspot_phase": 2,
+          "battery_before": [
+            3004.409868669753,
+            2736.6975656087925
+          ],
+          "battery_after_flight": [
+            2835.9198686697528,
+            2568.2075656087927
+          ],
+          "battery_after_service": [
+            2351.6207523486314,
+            2088.7775656087924
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.869116321121196,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.11644428355751839,
+          "termination_reason": null
+        },
+        {
+          "step": 38,
+          "action_executed": true,
+          "hotspot_phase": 1,
+          "battery_before": [
+            2351.6207523486314,
+            2088.7775656087924
+          ],
+          "battery_after_flight": [
+            2183.130752348631,
+            1920.2875656087924
+          ],
+          "battery_after_service": [
+            1698.8841673206696,
+            1440.8575656087924
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            4.816585027961541,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.08505254861300396,
+          "termination_reason": null
+        },
+        {
+          "step": 39,
+          "action_executed": true,
+          "hotspot_phase": 1,
+          "battery_before": [
+            1698.8841673206696,
+            1440.8575656087924
+          ],
+          "battery_after_flight": [
+            1530.3941673206696,
+            1272.3675656087923
+          ],
+          "battery_after_service": [
+            1050.9641673206695,
+            792.9375656087923
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.0,
+          "termination_reason": null
+        },
+        {
+          "step": 40,
+          "action_executed": true,
+          "hotspot_phase": 1,
+          "battery_before": [
+            1050.9641673206695,
+            792.9375656087923
+          ],
+          "battery_after_flight": [
+            882.4741673206695,
+            624.4475656087923
+          ],
+          "battery_after_service": [
+            403.04416732066943,
+            145.0175656087922
+          ],
+          "energy_fly": [
+            168.49,
+            168.49
+          ],
+          "energy_hover": [
+            1179.43,
+            1179.43
+          ],
+          "energy_comp": [
+            0.0,
+            0.0
+          ],
+          "energy_in": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_accepted": [
+            700.0,
+            700.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.0,
+          "termination_reason": null
+        },
+        {
+          "step": 40,
+          "action_executed": false,
+          "hotspot_phase": 1,
+          "battery_before": [
+            403.04416732066943,
+            145.0175656087922
+          ],
+          "battery_after_flight": [
+            403.04416732066943,
+            145.0175656087922
+          ],
+          "battery_after_service": [
+            403.04416732066943,
+            145.0175656087922
+          ],
+          "energy_fly": [
+            0.0,
+            0.0
+          ],
+          "energy_hover": [
+            0.0,
+            0.0
+          ],
+          "energy_comp": [
+            0.0,
+            0.0
+          ],
+          "energy_in": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_accepted": [
+            0.0,
+            0.0
+          ],
+          "energy_charge_overflow": [
+            0.0,
+            0.0
+          ],
+          "rho_mean": 0.0,
+          "termination_reason": "safety_filter_no_feasible_candidate"
+        }
+      ],
+      "hotspot_schedule": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hotspot_segments": [
+        {
+          "start": 0,
+          "phase": 0,
+          "duration": 17
+        },
+        {
+          "start": 17,
+          "phase": 2,
+          "duration": 20
+        },
+        {
+          "start": 37,
+          "phase": 1,
+          "duration": 14
+        }
+      ],
+      "uav_trajectory": [
+        [
+          [
+            229.75086953953073,
+            296.0914966737859
+          ],
+          [
+            216.79375209865373,
+            252.23988313900102
+          ]
+        ],
+        [
+          [
+            235.61574860033778,
+            320.39382564864155
+          ],
+          [
+            221.17145464304025,
+            276.85361346239716
+          ]
+        ],
+        [
+          [
+            223.52984091097568,
+            342.27831411248775
+          ],
+          [
+            210.29393811676005,
+            299.3631588647482
+          ]
+        ],
+        [
+          [
+            201.0836717183879,
+            353.28601544281656
+          ],
+          [
+            197.07979897008371,
+            320.5854708644403
+          ]
+        ],
+        [
+          [
+            177.64270333877315,
+            344.59573343209325
+          ],
+          [
+            173.8110290626588,
+            329.7268245385586
+          ]
+        ],
+        [
+          [
+            176.61705342385793,
+            368.419113659519
+          ],
+          [
+            175.65169568549095,
+            354.6589713852221
+          ]
+        ],
+        [
+          [
+            186.48323208350206,
+            360.6567159907929
+          ],
+          [
+            186.63754008273423,
+            354.66389018457335
+          ]
+        ],
+        [
+          [
+            189.7078141280269,
+            385.4478851975514
+          ],
+          [
+            190.23621578846877,
+            379.4035250477834
+          ]
+        ],
+        [
+          [
+            167.82972542085793,
+            397.5453739667648
+          ],
+          [
+            169.93420377762257,
+            393.9921613209741
+          ]
+        ],
+        [
+          [
+            153.29141737308635,
+            377.2072914832046
+          ],
+          [
+            154.2524733166082,
+            374.5220989238452
+          ]
+        ],
+        [
+          [
+            164.64707828704556,
+            388.1010659108667
+          ],
+          [
+            165.87738160759736,
+            387.5459391457078
+          ]
+        ],
+        [
+          [
+            145.47386266387494,
+            372.0577556954714
+          ],
+          [
+            146.44468838609032,
+            371.8179248349693
+          ]
+        ],
+        [
+          [
+            168.56208308890717,
+            381.6459816838973
+          ],
+          [
+            169.39993377471,
+            381.7202836018619
+          ]
+        ],
+        [
+          [
+            155.77269412683427,
+            377.01208255820086
+          ],
+          [
+            156.05277096504716,
+            376.8853839892397
+          ]
+        ],
+        [
+          [
+            166.49119002592795,
+            399.59778258412683
+          ],
+          [
+            166.5997025602989,
+            399.5517077742093
+          ]
+        ],
+        [
+          [
+            180.1922308523981,
+            398.5474074833431
+          ],
+          [
+            180.24285463300592,
+            398.52906030454284
+          ]
+        ],
+        [
+          [
+            170.52236561565115,
+            378.8949052419159
+          ],
+          [
+            170.5491008456773,
+            378.8929775970156
+          ]
+        ],
+        [
+          [
+            174.51577471318075,
+            354.21591247924897
+          ],
+          [
+            174.5406053831793,
+            354.21367672508853
+          ]
+        ],
+        [
+          [
+            186.11896080631854,
+            332.0717016672102
+          ],
+          [
+            186.14090417427457,
+            332.0679532562715
+          ]
+        ],
+        [
+          [
+            194.1364203980342,
+            308.3921674299156
+          ],
+          [
+            194.15721185934967,
+            308.38802903556916
+          ]
+        ],
+        [
+          [
+            193.49537804929614,
+            283.40038748715995
+          ],
+          [
+            193.51099518755782,
+            283.3963823508647
+          ]
+        ],
+        [
+          [
+            195.7716324370342,
+            258.5042298325679
+          ],
+          [
+            195.78620299249792,
+            258.5001290294442
+          ]
+        ],
+        [
+          [
+            182.7915434121299,
+            279.8704950397949
+          ],
+          [
+            182.8044959164795,
+            279.8654111804586
+          ]
+        ],
+        [
+          [
+            186.118699912453,
+            255.09288358060945
+          ],
+          [
+            186.1269400955766,
+            255.0871674033709
+          ]
+        ],
+        [
+          [
+            174.76554978969804,
+            277.3663202774955
+          ],
+          [
+            174.77300464617514,
+            277.3602037884448
+          ]
+        ],
+        [
+          [
+            163.4123996669431,
+            299.63975697438156
+          ],
+          [
+            163.41906919677368,
+            299.63324017351863
+          ]
+        ],
+        [
+          [
+            152.05924954418813,
+            321.9131936712676
+          ],
+          [
+            152.06513374737224,
+            321.90627655859254
+          ]
+        ],
+        [
+          [
+            140.70609942143318,
+            344.18663036815366
+          ],
+          [
+            140.71119829797078,
+            344.17931294366645
+          ]
+        ],
+        [
+          [
+            129.35294929867823,
+            366.4600670650397
+          ],
+          [
+            129.35726284856932,
+            366.4523493287403
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ],
+        [
+          [
+            125.0,
+            375.0
+          ],
+          [
+            125.0,
+            375.0
+          ]
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+
+############################################################
+  Batch run: 1 algorithms
+  Algos: ['per_sac_cvx']
+  Episodes: 20, Tag: review_smoke_final_20261029
+############################################################
+
+>>> [1/1] PER_SAC_CVX
+
+==========================================================
+  Algorithm: PER_SAC_CVX
+  Episodes: 20, Seed: 42, Tag: review_smoke_final_20261029
+==========================================================
+  [per_sac_cvx] Ep     1/20 | R_50: 158.11 | ρ_50: 0.185 | Surv_50: 29.0 | Time: 0s
+  [per_sac_cvx] Ep     2/20 | R_50: 141.31 | ρ_50: 0.165 | Surv_50: 29.0 | Time: 0s
+  [per_sac_cvx] Ep     4/20 | R_50: 156.28 | ρ_50: 0.182 | Surv_50: 29.0 | Time: 0s
+  [per_sac_cvx] Ep     6/20 | R_50: 150.85 | ρ_50: 0.176 | Surv_50: 29.0 | Time: 3s
+  [per_sac_cvx] Ep     8/20 | R_50: 153.65 | ρ_50: 0.179 | Surv_50: 29.0 | Time: 5s
+  [per_sac_cvx] Ep    10/20 | R_50: 151.42 | ρ_50: 0.176 | Surv_50: 29.2 | Time: 8s
+  [per_sac_cvx] Ep    12/20 | R_50: 154.27 | ρ_50: 0.179 | Surv_50: 29.2 | Time: 10s
+  [per_sac_cvx] Ep    14/20 | R_50: 150.92 | ρ_50: 0.176 | Surv_50: 29.1 | Time: 12s
+  [per_sac_cvx] Ep    16/20 | R_50: 149.14 | ρ_50: 0.173 | Surv_50: 29.2 | Time: 14s
+  [per_sac_cvx] Ep    18/20 | R_50: 151.55 | ρ_50: 0.176 | Surv_50: 29.2 | Time: 17s
+  [per_sac_cvx] Ep    20/20 | R_50: 151.00 | ρ_50: 0.175 | Surv_50: 29.2 | Time: 19s
+  [per_sac_cvx] Done! 19s (0.3min)
+  Saved: /workspace/scratch/f8ca97497f1c/Dars/results/review_smoke_final_20261029/per_sac_cvx.npz
+  Model: /workspace/scratch/f8ca97497f1c/Dars/results/review_smoke_final_20261029/per_sac_cvx.pth

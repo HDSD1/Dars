@@ -1,0 +1,63 @@
+{
+  "battery_capacity": 40000.0,
+  "initial_energy": 40000.0,
+  "horizon": 50,
+  "wct_indices": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "wct_power": 200.0,
+  "hotspot_mode": "fixed",
+  "hotspot_reference_slots": 50,
+  "time_reference_slots": 50,
+  "train_orders": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      1,
+      2,
+      0
+    ],
+    [
+      2,
+      0,
+      1
+    ]
+  ],
+  "test_orders": [
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      2,
+      1,
+      0
+    ],
+    [
+      1,
+      0,
+      2
+    ]
+  ],
+  "train_dwell": [
+    12,
+    20
+  ],
+  "test_dwell_ranges": [
+    [
+      4,
+      8
+    ],
+    [
+      24,
+      32
+    ]
+  ]
+}

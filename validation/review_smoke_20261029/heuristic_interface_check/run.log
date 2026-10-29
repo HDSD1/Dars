@@ -1,0 +1,34 @@
+
+############################################################
+  Batch run: 2 algorithms
+  Algos: ['greedy_cvx', 'priority_greedy_cvx']
+  Episodes: 2, Tag: review_heuristics_20261029
+############################################################
+
+>>> [1/2] GREEDY_CVX
+
+==========================================================
+  Algorithm: GREEDY_CVX
+  Episodes: 2, Seed: 42, Tag: review_heuristics_20261029
+==========================================================
+  [greedy_cvx] Ep     1/2 | R_50: 426.27 | ρ_50: 0.284 | Surv_50: 50.0 | Time: 0s
+  [greedy_cvx] Ep     2/2 | R_50: 344.08 | ρ_50: 0.243 | Surv_50: 47.0 | Time: 0s
+  [greedy_cvx] Done! 0s (0.0min)
+  Saved: /workspace/scratch/f8ca97497f1c/Dars/results/review_heuristics_20261029/greedy_cvx.npz
+
+>>> [2/2] PRIORITY_GREEDY_CVX
+
+==========================================================
+  Algorithm: PRIORITY_GREEDY_CVX
+  Episodes: 2, Seed: 42, Tag: review_heuristics_20261029
+==========================================================
+  [priority_greedy_cvx] Ep     1/2 | R_50: 260.26 | ρ_50: 0.211 | Surv_50: 42.0 | Time: 0s
+  [priority_greedy_cvx] Ep     2/2 | R_50: 224.16 | ρ_50: 0.190 | Surv_50: 40.0 | Time: 0s
+  [priority_greedy_cvx] Done! 0s (0.0min)
+  Saved: /workspace/scratch/f8ca97497f1c/Dars/results/review_heuristics_20261029/priority_greedy_cvx.npz
+
+============================================================
+  Batch Summary (review_heuristics_20261029)
+============================================================
+  greedy_cvx           | R=  344.08 | rho=0.2433 | 0s
+  priority_greedy_cvx  | R=  224.16 | rho=0.1903 | 0s

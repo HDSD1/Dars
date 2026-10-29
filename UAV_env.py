@@ -8,6 +8,8 @@ global projection. Energy checks use ENERGY_TOL joules of numerical tolerance.
 """
 
 import math
+import time
+from experiment_config import EnvironmentConfig
 import numpy as np
 
 # Joules, ratio threshold, and conservative correction margin.
@@ -36,24 +38,30 @@ class UAVEnv:
     """多 UAV-MEC 计算卸载环境 (V5, 支持凸优化算力分配)."""
 
     def __init__(self, use_cvx_alloc=False,
-                 use_hotspot=True, disable_wct=False):
+                 use_hotspot=True, disable_wct=False, experiment_config=None, seed=None):
         """
         Args:
             use_cvx_alloc: True → 凸优化最优算力+带宽分配
                            False → 传统均分 (Baseline)
-            use_hotspot: True → 分阶段热/冷簇轮转 (3阶段)
+            use_hotspot: True → 使用 experiment_config 中的热点规则
                          False → 全局统一 TASK_PROB
             disable_wct: True → 关闭充电 (消融实验用)
         """
         self.state_dim = STATE_DIM
         self.action_dim = ACTION_DIM
         self.action_bound = ACTION_BOUND
-        self.slot_num = SLOT_NUM
+        self.experiment_config = experiment_config or EnvironmentConfig()
+        self.slot_num = self.experiment_config.horizon
+        self.battery_capacity = self.experiment_config.battery_capacity
+        self.initial_energy = self.experiment_config.initial_energy
+        self.wct_power = self.experiment_config.wct_power
+        self._set_seed(seed if seed is not None else int(np.random.randint(0, 2**31)))
         self.use_cvx_alloc = use_cvx_alloc
         self.use_hotspot = use_hotspot
         self.disable_wct = disable_wct
 
         self.wct_positions = self._init_wct_positions()
+        self.n_wct = len(self.wct_positions)
 
         self.e_battery_uav = None
         self.loc_uav = None
@@ -73,16 +81,49 @@ class UAVEnv:
         self.charge_log = []
 
     # ==================================================================
-    def reset(self):
-        self.e_battery_uav = np.full(K, E_BATTERY_INIT, dtype=np.float64)
+    def _set_seed(self, seed):
+        self.episode_seed = int(seed)
+        children = np.random.SeedSequence(self.episode_seed).spawn(4)
+        self.init_rng, self.mobility_rng, self.task_rng, self.hotspot_rng = [
+            np.random.default_rng(child) for child in children]
+
+    def _build_hotspot_schedule(self):
+        cfg = self.experiment_config
+        phases, segments = [], []
+        if cfg.hotspot_mode == 'fixed':
+            phases = [min(2, int(3 * (t % cfg.hotspot_reference_slots) /
+                                 cfg.hotspot_reference_slots)) for t in range(self.slot_num + 1)]
+        else:
+            orders = cfg.test_orders if cfg.hotspot_mode == 'unseen_order' else cfg.train_orders
+            # Pick one order per episode, avoiding accidental held-out transitions
+            # at boundaries between randomly chosen three-phase blocks.
+            order = orders[int(self.hotspot_rng.integers(len(orders)))]
+            idx = 0
+            while len(phases) <= self.slot_num:
+                bounds = cfg.train_dwell
+                if cfg.hotspot_mode == 'unseen_timing':
+                    bounds = cfg.test_dwell_ranges[int(self.hotspot_rng.integers(len(cfg.test_dwell_ranges)))]
+                dwell = int(self.hotspot_rng.integers(bounds[0], bounds[1] + 1))
+                segments.append(dict(start=len(phases), phase=int(order[idx % 3]), duration=dwell))
+                phases.extend([order[idx % 3]] * dwell)
+                idx += 1
+        self.hotspot_schedule = np.asarray(phases[:self.slot_num + 1], dtype=int)
+        self.hotspot_segments = segments
+
+    def reset(self, seed=None):
+        if seed is not None:
+            self._set_seed(seed)
+        self.current_step = 0
+        self._build_hotspot_schedule()
+        self.e_battery_uav = np.full(K, self.initial_energy, dtype=np.float64)
 
         # ★ UAV 初始位置随机化 (在场地内随机撒点)
         # ★ 修改：让所有 UAV 初始集中在场地正中央区域 (250, 250) 附近
         # 这样它们距离位于四个角落 (125,125 等) 的充电站都有一定距离 (~176米)
         # 能更有力地证明它们是“主动”飞过去充电的，而不是“恰好”出生在充电站旁边
         self.loc_uav = np.column_stack([
-            np.random.uniform(GROUND_LENGTH * 0.45, GROUND_LENGTH * 0.55, K),
-            np.random.uniform(GROUND_WIDTH * 0.45, GROUND_WIDTH * 0.55, K),
+            self.init_rng.uniform(GROUND_LENGTH * 0.45, GROUND_LENGTH * 0.55, K),
+            self.init_rng.uniform(GROUND_WIDTH * 0.45, GROUND_WIDTH * 0.55, K),
         ])
 
         # ★ 四象限簇中心 (固定位置)
@@ -94,8 +135,7 @@ class UAVEnv:
         ], dtype=np.float64)
         self.user_cluster_ids = np.arange(M) % N_CLUSTERS
 
-        # ★ 热/冷簇轮转方案 (3阶段)
-        # 每阶段 2个热簇(0.8), 2个冷簇(0.2), 热簇顺时针旋转
+        # Three original hotspot pairs; order/dwell come from the schedule.
         self._hotspot_phases = [
             [0, 1],  # Phase 0: 北+东 热
             [1, 2],  # Phase 1: 东+南 热
@@ -108,8 +148,6 @@ class UAVEnv:
 
         # ★ 任务生成 (根据热点模式)
         self._generate_tasks()
-
-        self.current_step = 0
 
         self.trajectory_log = []
         self.ue_position_log = []
@@ -129,7 +167,7 @@ class UAVEnv:
         for k in range(K):
             best_dist = float('inf')
             best_dx, best_dy = 0.0, 0.0
-            for j in range(N_WCT):
+            for j in range(self.n_wct):
                 dx = self.wct_positions[j, 0] - self.loc_uav[k, 0]
                 dy = self.wct_positions[j, 1] - self.loc_uav[k, 1]
                 d = math.sqrt(dx*dx + dy*dy)
@@ -148,7 +186,7 @@ class UAVEnv:
             self.task_list,
             self.active_mask.astype(np.float64),
             wct_info,                                    # ★ WCT 几何线索
-            [self.current_step / max(SLOT_NUM, 1)],
+            [min(self.current_step / self.experiment_config.time_reference_slots, 1.0)],
         ])
         assert state.shape[0] == STATE_DIM, \
             f"state dim {state.shape[0]} != {STATE_DIM}"
@@ -289,6 +327,15 @@ class UAVEnv:
         association = np.full(M, -1, dtype=int)
         zeros = np.zeros(K)
         info = {
+            'decision_seconds': time.perf_counter() - self._decision_started,
+            'battery_before': self.e_battery_uav.copy(),
+            'battery_after_flight': self.e_battery_uav.copy(),
+            'battery_after_service': self.e_battery_uav.copy(),
+            'energy_hover': zeros.copy(),
+            'energy_charge_accepted': zeros.copy(),
+            'energy_charge_overflow': zeros.copy(),
+            'hotspot_phase': self._get_current_phase(),
+            'termination_reason': failure_phase,
             'delays': delays.copy(), 'rho': delays.copy(),
             'association': association, 'N_k': np.zeros(K, dtype=int),
             'energy_ok': np.zeros(K, dtype=bool),
@@ -323,6 +370,9 @@ class UAVEnv:
         return self._get_obs(), 0.0, True, info
 
     def step(self, action):
+        self._decision_started = time.perf_counter()
+        battery_before = self.e_battery_uav.copy()
+        hotspot_phase = self._get_current_phase()
         # SAC controls the normalized proposal; never mutate the caller's array.
         raw_action = np.asarray(action, dtype=np.float64).copy()
         if raw_action.shape != (self.action_dim,) or not np.all(np.isfinite(raw_action)):
@@ -474,6 +524,8 @@ class UAVEnv:
                 'candidate_energy_in': energy_in.copy(),
             })
 
+        decision_seconds = time.perf_counter() - self._decision_started
+
         # ---- 4. 延迟计算 ----
         delays = np.zeros(M)
         rho_list = np.zeros(M)
@@ -518,9 +570,11 @@ class UAVEnv:
         self.e_battery_uav = np.clip(
             battery_after_flight - hover_energy - comp_energy + energy_in,
             0.0,
-            E_BATTERY_INIT,
+            self.battery_capacity,
         )
 
+        overflow = np.maximum(0.0, battery_after_flight - service_energy + energy_in - self.battery_capacity)
+        accepted_charge = energy_in - overflow
         self.loc_uav = new_loc_uav
 
         # ---- 7. 奖励 (归一化延迟缩减目标) ----
@@ -541,7 +595,7 @@ class UAVEnv:
         # (c) 低电量安全约束惩罚 (二次函数)
         battery_penalty = 0.0
         for k in range(K):
-            ratio = self.e_battery_uav[k] / E_BATTERY_INIT
+            ratio = self.e_battery_uav[k] / self.battery_capacity
             if ratio < BATTERY_LOW_THRESHOLD:
                 deficit = BATTERY_LOW_THRESHOLD - ratio
                 battery_penalty += deficit ** 2
@@ -551,8 +605,8 @@ class UAVEnv:
         any_dead = False  # Rejected proposals returned before committing this slot.
 
         # ---- 8. UE 更新 ----
-        self._update_ue()
         self.current_step += 1
+        self._update_ue()
 
         # ---- 9. 日志 ----
         self.trajectory_log.append(self.loc_uav.copy())
@@ -568,6 +622,15 @@ class UAVEnv:
         done = any_dead or (self.current_step >= self.slot_num)
         
         info = {
+            'battery_before': battery_before,
+            'battery_after_flight': battery_after_flight.copy(),
+            'battery_after_service': self.e_battery_uav.copy(),
+            'energy_hover': hover_energy.copy(),
+            'energy_charge_accepted': accepted_charge,
+            'energy_charge_overflow': overflow,
+            'decision_seconds': decision_seconds,
+            'hotspot_phase': hotspot_phase,
+            'termination_reason': 'horizon' if done else None,
             'delays': delays, 'rho': rho_list,
             'association': association, 'energy_ok': energy_ok,
             'flight_ok': flight_ok, 'service_ok': service_ok,
@@ -610,8 +673,8 @@ class UAVEnv:
     def _compute_charging(self, uav_locs):
         if self.disable_wct:
             return np.zeros(K)
-        p_matrix = np.zeros((N_WCT, K))
-        for j in range(N_WCT):
+        p_matrix = np.zeros((self.n_wct, K))
+        for j in range(self.n_wct):
             for k in range(K):
                 dx = uav_locs[k, 0] - self.wct_positions[j, 0]
                 dy = uav_locs[k, 1] - self.wct_positions[j, 1]
@@ -621,10 +684,10 @@ class UAVEnv:
                     p_matrix[j, k] = ETA_WCT / (THETA_WCT * l_jk + MU_WCT) ** 2
 
         # WCT 输出约束
-        for j in range(N_WCT):
+        for j in range(self.n_wct):
             total_out_j = np.sum(p_matrix[j, :])
-            if total_out_j > P_MAX_WCT:
-                p_matrix[j, :] *= P_MAX_WCT / total_out_j
+            if total_out_j > self.wct_power:
+                p_matrix[j, :] *= self.wct_power / total_out_j
 
         # 汇总 + UAV 接收上限
         return np.minimum(np.sum(p_matrix, axis=0), P_TH)
@@ -694,15 +757,15 @@ class UAVEnv:
         return association
 
     def _init_wct_positions(self):
-        return WCT_POSITIONS.copy()
+        return WCT_POSITIONS[list(self.experiment_config.wct_indices)].copy()
 
     def _init_ue_positions(self):
         # ★ 热点分布: 每个用户围绕其所属热点中心的高斯分布
         locs = np.zeros((M, 2))
         for i in range(M):
             c = self.user_cluster_ids[i]
-            locs[i, 0] = self.cluster_centers[c, 0] + np.random.normal(0, CLUSTER_STD)
-            locs[i, 1] = self.cluster_centers[c, 1] + np.random.normal(0, CLUSTER_STD)
+            locs[i, 0] = self.cluster_centers[c, 0] + self.mobility_rng.normal(0, CLUSTER_STD)
+            locs[i, 1] = self.cluster_centers[c, 1] + self.mobility_rng.normal(0, CLUSTER_STD)
         locs[:, 0] = np.clip(locs[:, 0], 0, GROUND_LENGTH)
         locs[:, 1] = np.clip(locs[:, 1], 0, GROUND_WIDTH)
         return locs
@@ -827,17 +890,11 @@ class UAVEnv:
         return b_alloc
 
     def _get_current_phase(self):
-        """将 episode 均分为3阶段 (自适应 SLOT_NUM)."""
-        third = self.slot_num / 3
-        if self.current_step < third:
-            return 0
-        elif self.current_step < 2 * third:
-            return 1
-        else:
-            return 2
+        """Phase for the CURRENT observation; schedule is independent of horizon."""
+        return int(self.hotspot_schedule[min(self.current_step, self.slot_num)])
 
     def _generate_tasks(self):
-        """根据热点模式生成任务: 热簇0.8到达率, 冷簇0.2."""
+        """Generate tasks using configured hot/cold probabilities."""
         if self.use_hotspot:
             phase = self._get_current_phase()
             hot_clusters = set(self._hotspot_phases[phase])
@@ -849,19 +906,17 @@ class UAVEnv:
         else:
             probs = np.full(M, TASK_PROB)
 
-        self.active_mask = np.random.random(M) < probs
+        self.active_mask = self.task_rng.random(M) < probs
         self.task_list = np.zeros(M, dtype=np.float64)
-        n_active = int(np.sum(self.active_mask))
-        if n_active > 0:
-            self.task_list[self.active_mask] = np.random.randint(
-                TASK_MIN, TASK_MAX + 1, n_active).astype(np.float64)
+        sizes = self.task_rng.integers(TASK_MIN, TASK_MAX + 1, M)
+        self.task_list[self.active_mask] = sizes[self.active_mask].astype(np.float64)
 
     def _update_ue(self):
         # ★ 1. 用户小范围随机移动 (围绕簇中心)
         for i in range(M):
             c = self.user_cluster_ids[i]
-            self.loc_ue[i, 0] = self.cluster_centers[c, 0] + np.random.normal(0, CLUSTER_STD)
-            self.loc_ue[i, 1] = self.cluster_centers[c, 1] + np.random.normal(0, CLUSTER_STD)
+            self.loc_ue[i, 0] = self.cluster_centers[c, 0] + self.mobility_rng.normal(0, CLUSTER_STD)
+            self.loc_ue[i, 1] = self.cluster_centers[c, 1] + self.mobility_rng.normal(0, CLUSTER_STD)
         self.loc_ue[:, 0] = np.clip(self.loc_ue[:, 0], 0, GROUND_LENGTH)
         self.loc_ue[:, 1] = np.clip(self.loc_ue[:, 1], 0, GROUND_WIDTH)
 

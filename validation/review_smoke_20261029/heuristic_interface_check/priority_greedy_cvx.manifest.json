@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "source_sha256": {
+    "plot_sensitivity_A_D.py": "f7169ccfa81aa6b603ba1be709fa7a1122a652a1b9569fba23987edd6b106065",
+    "plot_ablation_curves_fixed.py": "197f04036bafed710921a0a9aa99ed78d404fce27e59483b86fb8f562c7be982",
+    "plot_hot_bar_results.py": "cc11617e6f76b1c6dc78f49c8e157eb240c9b4fe44db4e7b528ed1c7da984cdd",
+    "eval_resource_ablation.py": "d3e3d89ab1278e478658a870ae22f96aaddf25bea27f54a71003782fe455be7b",
+    "train_unified.py": "71bb07794e676423970937889d2e24946038307b0d815da19e364974f06514ac",
+    "UAV_env.py": "01b465ecacc915ca389236b31c01f92df7e0fc649625e3a40b471fe2520a09f8",
+    "plot_multiseed_results.py": "9d714440938f28145c1e8bddac32ecd8dc81be8f62f60b940d2b13a0855e7641",
+    "plot_trajectory.py": "cff271e7b90fb0efc8461a340d9c97086b740f25a2a3b5746f8b868fcda1c8de",
+    "ddpg_vanilla.py": "f6f25ed2517dc0cf14721e1e4a8ac2aa4a58a9a4b3875a0381d37809171cea64",
+    "greedy_agent.py": "0439418a7cc7bf29dcfb26100981f404381c7b31c91c106334582c34b31867fc",
+    "verify_multiseed_numbers2.py": "cf0849a025b36474196ef328c789005a40f1a89e1609efa647caa1ba4a2abb27",
+    "calc_avg_improvements.py": "a760394bf83e3ba8cbaa9642dd47c8b6f0789744b53d534f23b0ebfff8a4e803",
+    "td3_agent.py": "090ebc33d681e0203352a5e6e34bad95ecb58ecca68ebd8da2d86db37087f342",
+    "sac_agent.py": "27aef143bee055a6040cfaa862e31c913abf53ff30d635184e651e0e39ff7f7f",
+    "tp_drl_agent.py": "ea7726e0325afb2deb93ef19086c20f2a018c8d8e1192ae8c521d87d0665e7d0",
+    "run_sensitivity.py": "bd865d4e75bb0702af5b4ee5f628c4ef0eadcbff0afa55235b85af85acf4f1ed",
+    "plot_results.py": "018b05fc19198801e2820537bda138e81cff23d8e4c745035d59c1fbe8a899a7",
+    "plot_ablation_bar.py": "b05c75b0b5b0d7740bde529cc3bcb2364ab0137c26d6e2e76a249051e5df3bcb",
+    "ddpg_agent.py": "07a589d9bf1c77da99ad969c87055b9f0a0bc5a363a3cea3a12f4860d9bd1690",
+    "verify_HOT_numbers.py": "4bb912afa033e71147612ae6478d3fe1ba9ab0514e46186751e852042c4e9721",
+    "per_uos_rl_agent.py": "3c8b175b3696d7f70defc90d255f0ef9dca7872b3104bcf8e1ba22a3c6bf3702",
+    "plot_ablation_boxplot.py": "27e3ae01cfb5970845f9bfb554bdf44b6e6b4911d1a2e9e5fc37a2e0ea4b25f3",
+    "experiment_config.py": "bd82ee6acebdbfd54d8e6c853f9074f59c9e9cfdfbaa05dd3ece016946cae330",
+    "crop_pdf.py": "ff1bbddd362e29012189a2b657b892b7647cd8ad6f4eddcf00acb6d12272a400",
+    "plot_ablation_curves.py": "761d934324f1417b225d6a57d7004aa783d95098bd534d1bf08ec08c1d4e6f2d",
+    "tmc_ppo_agent.py": "d59e93c79520a515ce5d4663d4889430b06a244f7b5e964832b1744360423410",
+    "export_top_left.py": "06759c38ac99dc17b95e4cb6c31edbfe2e9c8a4c8a42d1352cfa06c27aaa4c24",
+    "DARS.py": "8c4880e96e3f408f63c9d995759bff143614124eb6badab85df467c0c650d4e2",
+    "per_ddpg_agent.py": "46c4cb69f705ef00c9bb346a1ce18d4317d5694e54db6cfb8123a255691b745f",
+    "plot_attention_heatmap.py": "c1a963c9dac872ff846e82cfcf352175ecab0cf9ea454d13e61aac73799ed79f",
+    "no_atten.py": "7b4e1f4aa5fbdc6b2d9f1270193197ade18aed37b99742a550bc9ff2304963ad",
+    "att_sac_agent.py": "fa85d73820ba477c539ff7a5bafa70c797c94252135f48a2de7725c6fd8182c2",
+    "per_sac_agent.py": "9fa49558c7a30c1ba940541dd164c021a4a4c2628671496719bd5f0e1222e53d",
+    "plot_multiseed_results_fixed.py": "3a04692bd4505f9ae5b4fff284524f84412dd4e487e746d27d5b14a9e25c9a94",
+    "evaluation.py": "0cb65556842fa6e082a53fa120213a679b47c4741b806746621481522e5e1587",
+    "plot_sensitivity_K.py": "9fc2c607ffdac7ca763abea5b56e2dcbd6edba93f2c158f3ac127ac6949eb5e4",
+    "plot_ablation_radar.py": "a48939d750fcc8bb54ba41243b6b106bc6423e5ee2cee3a1df8b1c1420a344b6",
+    "ppo_agent.py": "312c50461d47854268eb82cb6a4a0b0f5b87a1d7706fa6464b918641f67eecec",
+    "config.py": "5946fd77cd23de13627fd1831a0f166f77af9c7eb27319bfe2f463072966b011",
+    "evaluate_suite.py": "0a219a5d281d3b570c66b28870677a67ebcba313a1d906e328b8bb1831bbc22b",
+    "run_multiseed.py": "64a3d012590b57be812bc53325151c8cc4ef2c5abcd65c62d5a8188137050a30",
+    "plot_ablation_curves_fixed (1).py": "197f04036bafed710921a0a9aa99ed78d404fce27e59483b86fb8f562c7be982",
+    "verify_multiseed_numbers.py": "f6336946f94000b89c5215f0e1353903bd235eb99163dcc15880474040e2b73e",
+    "priority_greedy_agent.py": "917dca2fd5913e891c04c68b4930e0480ae96af73c1a4d26e47e0783e707648e",
+    "summarize_results.py": "4717c3a5d078f71daf88c4567bd6c4da96c3bcd1d8baefc809790933a46de63e",
+    "knn_ddpg_agent.py": "57cdbcdf324235d06d8e0f329ca4f18a398ec69ed17d0c0b719c844c2869660d",
+    "verify_M_numbers.py": "b1f98080b48dad4aa89811ef43ccb24b8801d8c7d2eebd1717f4ffc4f18cfad7",
+    "train.py": "a6a5855fef18f8c4efc3cc06d5f5075d5a8dd3189c6b645c40deee34c9290dde",
+    "run_ablation.py": "d37ebaac40290c8fb173832e3d2822430eb4d3bf1fd2f07f183cba2827cb58ef",
+    "maddpg_agent.py": "bd7bf79e8ed81bc774af139c0020bc8b863141b1999ce04ba8e81a22592f4551",
+    "visualize.py": "9d82d3191159fb98c67ebd7da52210570db09e8a954851f6377e7a107994fc10",
+    "esac_per_agent.py": "443ab4ef84faf417a3bc5b60aa68413dc36a782ff9346bd98fb05d58615bec81",
+    "plot_trajectory_paper.py": "95beb8d36f8d8719f7aff2af2c12468518fcd73e06098af486bbf145b823d141",
+    "state_normalization.py": "3cf04809bd38625da8d36a12ba3322a3a628b17e94f70d636114c98166019a34"
+  },
+  "agent_parameters": {
+    "K": 2,
+    "M": 30,
+    "STATE_DIM": 133,
+    "ACTION_DIM": 36,
+    "ACTION_BOUND": [
+      -1.0,
+      1.0
+    ],
+    "GROUND_LENGTH": 500.0,
+    "GROUND_WIDTH": 500.0,
+    "E_BATTERY_CAPACITY": 40000.0,
+    "V_MAX": 25.0,
+    "T_FLY": 1.0
+  },
+  "algorithm": "priority_greedy_cvx",
+  "training_seed": 42,
+  "training_episode_seeds": [
+    5200000,
+    5200001
+  ],
+  "validation_seeds": [
+    100000
+  ],
+  "environment": {
+    "battery_capacity": 40000.0,
+    "initial_energy": 40000.0,
+    "horizon": 50,
+    "wct_indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "wct_power": 200.0,
+    "hotspot_mode": "diverse",
+    "hotspot_reference_slots": 50,
+    "time_reference_slots": 50,
+    "train_orders": [
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        1,
+        2,
+        0
+      ],
+      [
+        2,
+        0,
+        1
+      ]
+    ],
+    "test_orders": [
+      [
+        0,
+        2,
+        1
+      ],
+      [
+        2,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        2
+      ]
+    ],
+    "train_dwell": [
+      12,
+      20
+    ],
+    "test_dwell_ranges": [
+      [
+        4,
+        8
+      ],
+      [
+        24,
+        32
+      ]
+    ]
+  },
+  "env_kwargs": {
+    "use_cvx_alloc": true
+  },
+  "training": {
+    "episodes": 2,
+    "warmup_steps": 8000,
+    "batch_size": 512
+  },
+  "system_parameters": {
+    "K": 2,
+    "M": 30,
+    "H": 100.0,
+    "GROUND_LENGTH": 500.0,
+    "GROUND_WIDTH": 500.0,
+    "N_MAX": 10,
+    "T_TOTAL": 400.0,
+    "T_FLY": 1.0,
+    "T_COM": 7.0,
+    "TAU_SLOT": 8.0,
+    "SLOT_NUM": 50,
+    "V_MAX": 25.0,
+    "R_COV": 150.0,
+    "M_UAV": 9.65,
+    "P0": 79.86,
+    "PI": 88.63,
+    "U_TIP": 120.0,
+    "V0": 4.03,
+    "D0": 0.6,
+    "RHO": 1.225,
+    "ROTOR_SOLIDITY": 0.05,
+    "ROTOR_AREA": 0.503,
+    "A_ENV": 9.61,
+    "B_ENV": 0.16,
+    "MU_LOS_DB": 1.0,
+    "MU_NLOS_DB": 20.0,
+    "MU_LOS": 1.2589254117941673,
+    "MU_NLOS": 100.0,
+    "ALPHA_PL": 2.0,
+    "FC": 2000000000.0,
+    "C_LIGHT": 300000000.0,
+    "ALPHA0": 0.00014248291449703749,
+    "BANDWIDTH": 1000000.0,
+    "P_TX": 0.1,
+    "SIGMA2": 1e-13,
+    "F_UE": 200000000.0,
+    "F_UAV": 3000000000.0,
+    "KAPPA": 1e-27,
+    "S_CYCLES": 1000,
+    "V_UE": 1.0,
+    "TASK_MIN": 2621440,
+    "TASK_MAX": 3145729,
+    "TASK_PROB": 0.5,
+    "N_CLUSTERS": 4,
+    "CLUSTER_STD": 60.0,
+    "V_CLUSTER": 8.0,
+    "HOTSPOT_HOT_PROB": 0.9,
+    "HOTSPOT_COLD_PROB": 0.1,
+    "E_BATTERY_CAPACITY": 40000.0,
+    "E_BATTERY_INIT": 40000.0,
+    "N_WCT": 4,
+    "H_WCT": 70.0,
+    "WCT_POSITIONS": [
+      [
+        125.0,
+        125.0
+      ],
+      [
+        375.0,
+        125.0
+      ],
+      [
+        125.0,
+        375.0
+      ],
+      [
+        375.0,
+        375.0
+      ]
+    ],
+    "ETA_WCT": 50000.0,
+    "THETA_WCT": 0.5,
+    "MU_WCT": 0.1,
+    "L_C": 100.0,
+    "P_TH": 200.0,
+    "P_MAX_WCT": 200.0,
+    "ACTION_DIM": 36,
+    "ACTION_BOUND": [
+      -1.0,
+      1.0
+    ],
+    "STATE_DIM": 133,
+    "MAX_EPISODES": 5000,
+    "LR_ACTOR": 0.0001,
+    "LR_CRITIC": 0.0003,
+    "GAMMA": 0.99,
+    "TAU_SOFT": 0.001,
+    "MEMORY_CAPACITY": 100000,
+    "BATCH_SIZE": 512,
+    "WARMUP_STEPS": 8000,
+    "EXPLORE_NOISE_INIT": 0.3,
+    "EXPLORE_NOISE_MIN": 0.02,
+    "EXPLORE_DECAY": 0.9995,
+    "HIDDEN_DIM_1": 400,
+    "HIDDEN_DIM_2": 300,
+    "GRAD_CLIP": 1.0,
+    "TD3_POLICY_NOISE": 0.2,
+    "TD3_NOISE_CLIP": 0.5,
+    "TD3_POLICY_DELAY": 2,
+    "PER_ALPHA": 0.6,
+    "PER_BETA_START": 0.6,
+    "PER_BETA_FRAMES": 60000,
+    "PER_EPSILON": 1e-06,
+    "PER_MAX_IS_WEIGHT": 5.0,
+    "REWARD_BATTERY_PENALTY": 5.0,
+    "BATTERY_LOW_THRESHOLD": 0.3,
+    "SEED": 42
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "torch": "2.15.0+cpu",
+    "numpy": "2.3.5",
+    "threads": 1,
+    "device": "CPU"
+  },
+  "status": "completed",
+  "timing_scope": "preprocess+policy+safety+association+allocation",
+  "time_feature": "min(elapsed_slots/time_reference_slots, 1)",
+  "validation_note": "Same training hotspot distribution, independent seeds; not held-out test",
+  "effective_agent_settings": {
+    "n_step": null,
+    "lambda_surprise": null
+  },
+  "training_seconds": 0.09110069274902344,
+  "attempted_training_steps": 82,
+  "gradient_updates": null
+}

@@ -1,0 +1,434 @@
+[
+  {
+    "seed": 100000,
+    "horizon": 50,
+    "executed_steps": 31,
+    "attempted_steps": 32,
+    "survived": false,
+    "termination_reason": "safety_filter_no_feasible_candidate",
+    "reward": 244.66622917027541,
+    "slrr_executed": 0.26505470703431644,
+    "slrr_fixed_horizon": 0.1643339183612762,
+    "delay_executed": 10.649811325311777,
+    "min_battery_j": 276.22211903313035,
+    "min_battery_per_uav_j": [
+      276.22211903313035,
+      5147.872150583348
+    ],
+    "initial_battery_j": [
+      40000.0,
+      40000.0
+    ],
+    "final_battery_j": [
+      276.22211903313035,
+      5147.872150583348
+    ],
+    "mean_energy_per_executed_slot_j": 2628.2522358456495,
+    "decision_mean_ms": 3.4490195937308954,
+    "decision_p95_ms": 1.0065884500590982,
+    "decision_total_seconds": 0.11036862699938865,
+    "env_step_seconds": 0.09881193099909069,
+    "max_energy_violation_j": 0.0,
+    "movement_corrections": 0,
+    "offload_corrections": 0,
+    "rejected_steps": 1,
+    "energy_violation_steps": 0,
+    "energy_fly_j": 8055.216764010822,
+    "energy_fly_per_uav_j": [
+      4003.4894902220226,
+      4051.7272737887993
+    ],
+    "energy_hover_j": 73124.66,
+    "energy_hover_per_uav_j": [
+      36562.33,
+      36562.33
+    ],
+    "energy_comp_j": 295.9425472043223,
+    "energy_comp_per_uav_j": [
+      109.39035026334928,
+      186.55219694097303
+    ],
+    "energy_out_j": 81475.81931121513,
+    "energy_out_per_uav_j": [
+      40675.209840485375,
+      40800.60947072977
+    ],
+    "energy_in_j": 6899.913580831637,
+    "energy_in_per_uav_j": [
+      951.4319595185143,
+      5948.481621313123
+    ],
+    "energy_charge_accepted_j": 6899.913580831637,
+    "energy_charge_accepted_per_uav_j": [
+      951.4319595185143,
+      5948.481621313123
+    ],
+    "energy_charge_overflow_j": 0.0,
+    "energy_charge_overflow_per_uav_j": [
+      0.0,
+      0.0
+    ],
+    "hotspot_schedule": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "hotspot_segments": [
+      {
+        "start": 0,
+        "phase": 1,
+        "duration": 15
+      },
+      {
+        "start": 15,
+        "phase": 2,
+        "duration": 16
+      },
+      {
+        "start": 31,
+        "phase": 0,
+        "duration": 18
+      },
+      {
+        "start": 49,
+        "phase": 1,
+        "duration": 19
+      }
+    ]
+  },
+  {
+    "seed": 100001,
+    "horizon": 50,
+    "executed_steps": 30,
+    "attempted_steps": 31,
+    "survived": false,
+    "termination_reason": "safety_filter_no_feasible_candidate",
+    "reward": 146.03690141252974,
+    "slrr_executed": 0.1640267197847433,
+    "slrr_fixed_horizon": 0.098416031870846,
+    "delay_executed": 12.049276129975643,
+    "min_battery_j": 1173.9298295474412,
+    "min_battery_per_uav_j": [
+      1173.9298295474412,
+      4757.702599079422
+    ],
+    "initial_battery_j": [
+      40000.0,
+      40000.0
+    ],
+    "final_battery_j": [
+      1173.9298295474412,
+      4757.702599079422
+    ],
+    "mean_energy_per_executed_slot_j": 2629.6796566668327,
+    "decision_mean_ms": 3.5023305484085747,
+    "decision_p95_ms": 1.2423670000316633,
+    "decision_total_seconds": 0.10857224700066581,
+    "env_step_seconds": 0.09579257899940785,
+    "max_energy_violation_j": 0.0,
+    "movement_corrections": 0,
+    "offload_corrections": 0,
+    "rejected_steps": 1,
+    "energy_violation_steps": 0,
+    "energy_fly_j": 7796.470786334743,
+    "energy_fly_per_uav_j": [
+      3877.752622487283,
+      3918.7181638474594
+    ],
+    "energy_hover_j": 70765.8,
+    "energy_hover_per_uav_j": [
+      35382.9,
+      35382.9
+    ],
+    "energy_comp_j": 328.1189136702347,
+    "energy_comp_per_uav_j": [
+      147.82688381015018,
+      180.2920298600845
+    ],
+    "energy_out_j": 78890.38970000498,
+    "energy_out_per_uav_j": [
+      39408.47950629744,
+      39481.91019370755
+    ],
+    "energy_in_j": 4822.022128631878,
+    "energy_in_per_uav_j": [
+      582.4093358448815,
+      4239.612792786997
+    ],
+    "energy_charge_accepted_j": 4822.022128631878,
+    "energy_charge_accepted_per_uav_j": [
+      582.4093358448815,
+      4239.612792786997
+    ],
+    "energy_charge_overflow_j": 0.0,
+    "energy_charge_overflow_per_uav_j": [
+      0.0,
+      0.0
+    ],
+    "hotspot_schedule": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "hotspot_segments": [
+      {
+        "start": 0,
+        "phase": 0,
+        "duration": 16
+      },
+      {
+        "start": 16,
+        "phase": 1,
+        "duration": 15
+      },
+      {
+        "start": 31,
+        "phase": 2,
+        "duration": 14
+      },
+      {
+        "start": 45,
+        "phase": 0,
+        "duration": 12
+      }
+    ]
+  },
+  {
+    "seed": 100002,
+    "horizon": 50,
+    "executed_steps": 31,
+    "attempted_steps": 32,
+    "survived": false,
+    "termination_reason": "safety_filter_no_feasible_candidate",
+    "reward": 128.19506926494248,
+    "slrr_executed": 0.13919030484164338,
+    "slrr_fixed_horizon": 0.0862979890018189,
+    "delay_executed": 12.375818196785653,
+    "min_battery_j": 1245.5758459197973,
+    "min_battery_per_uav_j": [
+      1245.5758459197973,
+      8026.960783787727
+    ],
+    "initial_battery_j": [
+      40000.0,
+      40000.0
+    ],
+    "final_battery_j": [
+      1245.5758459197973,
+      8026.960783787727
+    ],
+    "mean_energy_per_executed_slot_j": 2629.8763039420423,
+    "decision_mean_ms": 3.4242679999749726,
+    "decision_p95_ms": 1.142381000227033,
+    "decision_total_seconds": 0.10957657599919912,
+    "env_step_seconds": 0.09629568699983793,
+    "max_energy_violation_j": 0.0,
+    "movement_corrections": 0,
+    "offload_corrections": 0,
+    "rejected_steps": 1,
+    "energy_violation_steps": 0,
+    "energy_fly_j": 8054.971913288386,
+    "energy_fly_per_uav_j": [
+      4004.507470155448,
+      4050.4644431329375
+    ],
+    "energy_hover_j": 73124.66,
+    "energy_hover_per_uav_j": [
+      36562.33,
+      36562.33
+    ],
+    "energy_comp_j": 346.53350891491755,
+    "energy_comp_per_uav_j": [
+      131.97246035742603,
+      214.56104855749155
+    ],
+    "energy_out_j": 81526.16542220331,
+    "energy_out_per_uav_j": [
+      40698.80993051286,
+      40827.35549169044
+    ],
+    "energy_in_j": 10798.702051910857,
+    "energy_in_per_uav_j": [
+      1944.3857764326938,
+      8854.316275478164
+    ],
+    "energy_charge_accepted_j": 10798.702051910857,
+    "energy_charge_accepted_per_uav_j": [
+      1944.3857764326938,
+      8854.316275478164
+    ],
+    "energy_charge_overflow_j": 0.0,
+    "energy_charge_overflow_per_uav_j": [
+      0.0,
+      0.0
+    ],
+    "hotspot_schedule": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "hotspot_segments": [
+      {
+        "start": 0,
+        "phase": 0,
+        "duration": 17
+      },
+      {
+        "start": 17,
+        "phase": 1,
+        "duration": 20
+      },
+      {
+        "start": 37,
+        "phase": 2,
+        "duration": 13
+      },
+      {
+        "start": 50,
+        "phase": 0,
+        "duration": 14
+      }
+    ]
+  }
+]
