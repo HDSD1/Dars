@@ -85,6 +85,7 @@ class EpisodeMetrics:
         self.energy = {key: np.zeros_like(self.min_battery) for key in
                        ('fly', 'hover', 'comp', 'out', 'in', 'charge_accepted', 'charge_overflow')}
         self.reward = 0.0
+        self.total_slrr = 0.0
         self.rhos, self.delays, self.decision_times = [], [], []
         self.reason = None
         self.corrections = dict(movement_corrections=0, offload_corrections=0,
@@ -106,6 +107,7 @@ class EpisodeMetrics:
         if executed:
             self.executed += 1
             self.rhos.append(float(info['rho_mean']))
+            self.total_slrr += float(np.sum(info['rho']))
             self.delays.append(float(info['delay_active_mean']))
             self.min_battery = np.minimum(self.min_battery, np.minimum(
                 info['battery_after_flight'], info['battery_after_service']))
@@ -127,6 +129,8 @@ class EpisodeMetrics:
         row = dict(seed=self.seed, horizon=self.horizon, executed_steps=self.executed,
                    attempted_steps=self.attempts, survived=self.executed == self.horizon,
                    termination_reason=self.reason, reward=self.reward,
+                   cumulative_total_slrr=self.total_slrr,
+                   mean_total_slrr_fixed_horizon=self.total_slrr / self.horizon,
                    slrr_executed=float(np.mean(self.rhos)) if self.rhos else None,
                    slrr_fixed_horizon=float(np.sum(self.rhos) / self.horizon),
                    delay_executed=float(np.mean(self.delays)) if self.delays else None,

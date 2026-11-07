@@ -595,6 +595,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         metrics_row['hotspot_segments'] = env.hotspot_segments
         with metrics_path.open('a', encoding='utf-8') as stream:
             stream.write(json.dumps(metrics_row, default=jsonable, allow_nan=False) + '\n')
+        if needs_training and (ep + 1) % 500 == 0:
+            agent.save(str(result_dir / f'{algo_name}.episode{ep+1}.pth'))
         ep_rewards.append(ep_reward)
         avg_delays.append(np.mean(ep_d) if ep_d else 0.0)
         avg_rhos.append(np.mean(ep_r) if ep_r else 0.0)
