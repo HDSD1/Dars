@@ -177,6 +177,12 @@ def create_per_sac_cvx():
     return PERSACAgent(), True, {'use_cvx_alloc': True}
 
 
+@register_algo('per_sac_cvx_conditional')
+def create_conditional_per_sac_cvx():
+    from conditional_dars import ConditionalDARSAgent
+    return ConditionalDARSAgent(), True, {'use_cvx_alloc': True}
+
+
 @register_algo('no_atten')
 def create_no_atten():
     # DARS ablation: keep PER/N-step/CVX, remove only user attention.
@@ -439,12 +445,13 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         env_kwargs['use_hotspot'] = True
     if disable_wct:
         env_kwargs['disable_wct'] = True
-    env = UAVEnv(**env_kwargs, experiment_config=env_config, seed=seed)
+    env_class = getattr(agent, 'environment_class', UAVEnv)
+    env = env_class(**env_kwargs, experiment_config=env_config, seed=seed)
     normalizer = StateNormalization(env.battery_capacity)
     configure_policy_environment(agent, env)
     if batch_size is not None:
         from DARS import PERSACAgent
-        if not isinstance(agent, PERSACAgent):
+        if not isinstance(agent, PERSACAgent) and not getattr(agent, 'supports_batch_size_override', False):
             raise ValueError('--batch-size override currently supports DARS and its inherited ablations only')
         agent.batch_size = batch_size
     actual_batch_size = getattr(agent, 'batch_size', BATCH_SIZE)
@@ -487,6 +494,10 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         'n_step': getattr(getattr(agent, 'n_step_buffer', None), 'n_step', None),
         'lambda_surprise': getattr(agent.buffer, 'lambda_surprise', None),
     }
+    if hasattr(agent, 'decision_structure'):
+        manifest['decision_structure'] = agent.decision_structure
+        manifest['architecture'] = agent.architecture
+        manifest['resource_and_reward_scope'] = 'Original KKT allocation and reward; only sequential decision structure changes'
     write_json(manifest_path, manifest)
     metrics_path = result_dir / f'{algo_name}.train.jsonl'
     metrics_path.write_text('', encoding='utf-8')
@@ -518,6 +529,8 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             sync_device()
             policy_started = time.perf_counter()
             s_norm = normalizer.normalize(state)
+            if hasattr(agent, 'last_preparation_seconds'):
+                agent.last_preparation_seconds = 0.
 
             if needs_training and total_steps < actual_warmup_steps:
                 action = np.random.uniform(-1, 1, env.action_dim)
@@ -525,7 +538,9 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
                 action = agent.select_action(state if getattr(agent, "expects_raw_state", False) else s_norm, noise_std=noise_std, use_ou=True)
 
             sync_device()
-            policy_seconds = time.perf_counter() - policy_started
+            # Preparation is counted once in info['decision_seconds'], not again as inference.
+            policy_seconds = max(0., time.perf_counter() - policy_started
+                                 - getattr(agent, 'last_preparation_seconds', 0.))
             # The critic and entropy are defined over this original proposal.
             proposal = np.asarray(action).copy()
             active_before = env.active_mask.copy()

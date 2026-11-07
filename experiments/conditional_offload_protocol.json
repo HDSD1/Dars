@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "implemented_and_engineering_tested_not_formally_trained",
+  "baseline_commit": "ce0381574e7b66868a0926a63d0e24ef79208426",
+  "baseline_tag": "baseline-before-conditional-offload-20261107",
+  "branch": "feature/association-conditioned-offload",
+  "algorithm_registry_key": "per_sac_cvx_conditional",
+  "architecture": "dars_association_conditioned_two_stage_v1",
+  "author_scope": "Only change decision structure; retain reward and KKT resource allocation. Independent branch, no new formal training authorized.",
+  "decision_order": [
+    "Movement actor proposes each UAV heading and speed",
+    "Existing energy safety projection determines the executable movement",
+    "Existing Greedy rule determines user-UAV association at the projected positions",
+    "Offloading actor observes association, projected geometry, battery/charging budgets and associated user loads",
+    "Existing KKT allocation and energy safety rules execute service and commit one physical slot"
+  ],
+  "learning": {
+    "stages": "Separate movement/offloading actors, twin critics, target critics, PER buffers and temperatures",
+    "within_slot_discount": 1,
+    "physical_discount": "Original GAMMA, applied per physical slot",
+    "offloading_returns": "Inherited three-physical-slot reward-return approximation, terminal prefixes flushed; not an exact entropy-corrected off-policy multistep target",
+    "hard_association": "Part of the environment transition, no gradient through discrete association or safety search",
+    "masked_dimensions": "Inactive/unassociated users have physical offload zero and no entropy-density contribution",
+    "reward": "Original M * mean-active rho plus battery penalty; not relabeled as the manuscript sum-rho reward",
+    "checkpoint": "New architecture and dimensions required; weights only, no optimizer/replay/RNG continuation"
+  },
+  "unchanged_source_modules": ["UAV_env.py", "DARS.py", "config.py", "state_normalization.py"],
+  "engineering_validation": {
+    "command": "python -B -m unittest discover -s tests",
+    "device": "CPU with CUDA_VISIBLE_DEVICES=-1 and two CPU threads",
+    "tests_passed": 50,
+    "coverage": [
+      "Old/new environment physical rollouts and exogenous states match for identical proposals",
+      "Preparation is pure, context commits once and reset invalidates it",
+      "Association-conditioned masks, entropy dimensions and user permutation behavior",
+      "Physical-slot discounting and rejected movement terminal flush",
+      "Small in-memory gradient updates for both stages, weight save/load and frozen evaluation",
+      "Existing association, energy-safety, evaluation and userwise-policy regressions"
+    ],
+    "windows_sandbox_note": "Point TEMP/TMP to the worktree tmp directory if the sandbox's global temp directory denies torch checkpoint writes. No production code change needed."
+  },
+  "limitations": [
+    "Engineering tests do not establish convergence, lower delay, higher total SLRR or robustness",
+    "The new structure adds network parameters, replay memory and sequential decision overhead; measure them in any future authorized experiment",
+    "Old checkpoints cannot be used as trained evidence for this architecture",
+    "No change to active frozen single-WCT training, paused server user-count jobs or protected manuscript files"
+  ]
+}

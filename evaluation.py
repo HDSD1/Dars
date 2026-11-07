@@ -181,7 +181,8 @@ def evaluate_policy(agent, env_config, env_kwargs, seeds, keep_trace=True):
             random.seed(seed)
             np.random.seed(seed)
             torch.manual_seed(seed)
-            env = UAVEnv(**env_kwargs, experiment_config=env_config, seed=seed)
+            env_class = getattr(agent, 'environment_class', UAVEnv)
+            env = env_class(**env_kwargs, experiment_config=env_config, seed=seed)
             configure_policy_environment(agent, env)
             state = env.reset(seed=seed)
             # Untimed inference warm-up; do not step or change the scenario.
@@ -202,7 +203,10 @@ def evaluate_policy(agent, env_config, env_kwargs, seeds, keep_trace=True):
                 started = time.perf_counter()
                 action = agent.select_action(policy_input(agent, normalizer, state), noise_std=0.0)
                 sync_device()
-                policy_seconds = time.perf_counter() - started
+                # A sequential policy prepares safety/association between its two heads.
+                # The environment includes that preparation in decision_seconds.
+                policy_seconds = max(0., time.perf_counter() - started
+                                     - getattr(agent, 'last_preparation_seconds', 0.))
                 started = time.perf_counter()
                 state, reward, done, info = env.step(action)
                 metrics.record(info, reward, policy_seconds, time.perf_counter() - started)
