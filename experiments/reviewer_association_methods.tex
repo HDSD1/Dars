@@ -1,0 +1,86 @@
+% Insert in the simulation section: association-module comparison setup.
+% Existing main Algorithm 1 and the training procedure are unchanged.
+% Requires the existing change color and the accompanying BibTeX entries.
+\subsubsection{\textcolor{change}{Association-Module Comparison}}
+\textcolor{change}{
+To assess the performance--complexity tradeoff of the distance-priority
+association, we compare it with two literature-inspired alternatives,
+Matching and Swap. Only the association module is replaced; both
+alternatives retain the proposed resource allocation and energy safety layer.
+}
+
+\textcolor{change}{
+\emph{Matching:} Following the many-to-one request-and-rejection mechanism
+in \cite{sun2024twotimescale}, each active user ranks the UAVs within its
+coverage by an estimated latency-reduction utility. For preference
+construction only, let $\tilde f_{i,k}=F_{\mathrm{UAV}}/N_{\max}$ and
+$\tilde b_{i,k}=W/N_{\max}$. Using the original offloading proposal
+$\hat x_i(t)$, the pairwise utility is
+}
+\begin{equation}
+\textcolor{change}{
+ u_{i,k}(t)=1-
+ \frac{\max\{\widehat T_i^{\mathrm{loc}}(t),
+                   \widetilde T_{i,k}^{\mathrm{edge}}(t)\}}
+      {T_i^{\mathrm{base}}(t)},
+}
+\label{eq:association_preference}
+\end{equation}
+\textcolor{change}{
+where $\widehat T_i^{\mathrm{loc}}(t)$ is the local-processing latency
+under $\hat x_i(t)$, and $\widetilde T_{i,k}^{\mathrm{edge}}(t)$ is the
+corresponding edge-path latency under the nominal resources.
+Users apply to UAVs in descending order of positive utility. Each UAV
+retains up to $N_{\max}$ applicants with the highest utility and rejects
+the others, which subsequently apply to their next preferred UAVs.
+The preferences remain fixed during matching, and unmatched users
+execute locally. The pricing utility in the reference is replaced by
+\eqref{eq:association_preference} to match our objective.
+}
+
+\textcolor{change}{
+\emph{Swap:} Inspired by the two-phase matching strategy in
+\cite{wang2025matching}, a distance-based association first provides
+reference UAV loads. A rate-based matching is then constructed using
+bandwidth estimates $W/\max\{1,n_k^{\mathrm{dist}}(t)\}$, where
+$n_k^{\mathrm{dist}}(t)$ is the number of users associated with UAV $k$
+in the distance-based initialization. Starting from this matching,
+feasible user exchanges are evaluated, including transfers to spare
+capacity and local execution through dummy options. Each candidate
+undergoes resource allocation and energy correction. An exchange is
+accepted only if it decreases
+}
+\begin{equation}
+\textcolor{change}{
+ J(\mathbf A;t)=\sum_{i:\xi_i(t)=1}
+ \frac{\max\{T_i^{\mathrm{loc}}(\mathbf A;t),
+             T_i^{\mathrm{edge}}(\mathbf A;t)\}}
+      {T_i^{\mathrm{base}}(t)},
+}
+\label{eq:association_evaluation}
+\end{equation}
+\textcolor{change}{
+where $\mathbf A=[a_{i,k}]$ denotes the association matrix; all active
+users, including unmatched users executing locally, are included.
+The first feasible improvement exceeding $10^{-8}$ is accepted,
+followed by a new neighborhood scan. The search stops when no
+improving neighbor is found or the budget of $20$ rounds or $1000$
+candidate evaluations is reached. Budget-limited termination is
+reported separately. These alternatives adapt the matching mechanisms
+of the references to our model and do not reproduce their complete
+optimization frameworks.
+}
+
+\textcolor{change}{
+All comparisons use a frozen DARS policy. At each evaluated state,
+the candidate UAV positions and original offloading proposals are
+shared across the three methods; association masking and energy
+correction are recomputed separately. Only the original DARS decisions
+advance the environment. We report the mean SLRR, paired SLRR gains,
+and mean and 95th-percentile module runtimes. Runtime includes
+preference construction, matching or exchange search, and all
+associated resource-allocation and safety checks. Thus, the comparison
+isolates instantaneous association effects under the frozen policy's
+state distribution, rather than establishing joint global optimality
+or the long-term performance of separately trained alternatives.
+}

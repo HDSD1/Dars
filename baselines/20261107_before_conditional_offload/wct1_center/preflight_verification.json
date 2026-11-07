@@ -1,0 +1,36 @@
+{
+  "verified_at": "2026-11-07T10:49:28.679551+08:00",
+  "external_trajectories_identical": true,
+  "slots_checked": 150,
+  "initial_uav_identical": true,
+  "hotspot_centers": [
+    [
+      125.0,
+      375.0
+    ],
+    [
+      375.0,
+      375.0
+    ],
+    [
+      375.0,
+      125.0
+    ],
+    [
+      125.0,
+      125.0
+    ]
+  ],
+  "wct_positions": [
+    [
+      250.0,
+      250.0
+    ]
+  ],
+  "center_shared_charging_w": [
+    100.0,
+    100.0
+  ],
+  "only_learning_source_change": "config.py N_WCT/WCT_POSITIONS",
+  "passed": true
+}

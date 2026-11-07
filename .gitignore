@@ -5,3 +5,9 @@ No_necesery/
 results/
 tmp/
 output/
+
+# Locally installed third-party solver packages and machine runtime artifacts.
+experiments/solver_deps/
+experiments/r39_solver_deps/
+validation/hardware_benchmark_20261029/*.json
+validation/hardware_benchmark_20261029/*.log

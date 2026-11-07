@@ -30,9 +30,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import (
     MAX_EPISODES, SLOT_NUM, SEED, BATCH_SIZE, WARMUP_STEPS,
     EXPLORE_NOISE_INIT, EXPLORE_NOISE_MIN, EXPLORE_DECAY,
-    ACTION_DIM,
+    ACTION_DIM, F_UE, P_TX, S_CYCLES, SIGMA2,
 )
-from UAV_env import UAVEnv
+from UAV_env import OFFLOAD_EPS, UAVEnv
 from state_normalization import StateNormalization
 
 
@@ -330,6 +330,85 @@ def _record_safety_stats(stats, info, elapsed):
         stats['energy_violation_steps'] += int(violation > info['energy_tolerance'])
 
 
+def _new_offload_timing_stats():
+    return dict(ratios=[], task_weighted_numerator=0.0, task_weight_denominator=0.0,
+                local_times=[], edge_times=[], uplink_times=[], offload_path_times=[],
+                active_user_slots=0, offloaded_user_slots=0, max_delay_error=0.0)
+
+
+def _series_summary(values):
+    if not values:
+        return dict(n=0, mean=None, median=None, p05=None, p95=None)
+    values = np.asarray(values, dtype=np.float64)
+    return dict(n=int(values.size), mean=float(np.mean(values)), median=float(np.median(values)),
+                p05=float(np.percentile(values, 5)), p95=float(np.percentile(values, 95)))
+
+
+def _record_offload_timing(stats, env, active_mask, task_sizes, ue_positions, info):
+    """Accumulate executed action ratios and exact per-slot local/edge path times."""
+    if not info['action_executed']:
+        return
+
+    ratios = np.asarray(info['offload_ratios'], dtype=np.float64)
+    association = np.asarray(info['association'], dtype=int)
+    cpu = np.asarray(info['cpu_allocation'], dtype=np.float64)
+    bandwidth = np.asarray(info['bandwidth_allocation'], dtype=np.float64)
+    uav_positions = env.loc_uav.copy()
+
+    for i in np.flatnonzero(active_mask):
+        size = float(task_sizes[i])
+        ratio = float(ratios[i])
+        cycles = size * S_CYCLES
+        local_time = (1.0 - ratio) * cycles / F_UE
+        stats['ratios'].append(ratio)
+        stats['task_weighted_numerator'] += ratio * size
+        stats['task_weight_denominator'] += size
+        stats['local_times'].append(local_time)
+        stats['active_user_slots'] += 1
+
+        k = int(association[i])
+        if k >= 0 and ratio > OFFLOAD_EPS:
+            gain = env._channel_gain(uav_positions[k], ue_positions[i])
+            snr = P_TX * gain / SIGMA2
+            rate = bandwidth[i] * np.log2(1.0 + max(snr, 1e-10))
+            uplink_time = ratio * size / max(float(rate), 1e-10)
+            edge_time = ratio * cycles / max(float(cpu[i]), 1e-10)
+            offload_path_time = uplink_time + edge_time
+            predicted_delay = max(local_time, offload_path_time)
+            stats['edge_times'].append(edge_time)
+            stats['uplink_times'].append(uplink_time)
+            stats['offload_path_times'].append(offload_path_time)
+            stats['offloaded_user_slots'] += 1
+        else:
+            predicted_delay = cycles / F_UE
+
+        stats['max_delay_error'] = max(
+            stats['max_delay_error'],
+            abs(predicted_delay - float(info['delays'][i])),
+        )
+
+
+def _finish_offload_timing_stats(stats):
+    active = stats['active_user_slots']
+    return dict(
+        active_user_slots=active,
+        offloaded_user_slots=stats['offloaded_user_slots'],
+        offload_ratio_equal_weight=(float(np.mean(stats['ratios'])) if stats['ratios'] else None),
+        offload_ratio_task_size_weighted=(
+            float(stats['task_weighted_numerator'] / stats['task_weight_denominator'])
+            if stats['task_weight_denominator'] else None
+        ),
+        active_slots_with_any_offload_fraction=(
+            float(stats['offloaded_user_slots'] / active) if active else None
+        ),
+        local_processing_time_s=_series_summary(stats['local_times']),
+        uav_edge_compute_time_s_offloaded=_series_summary(stats['edge_times']),
+        uplink_time_s_offloaded=_series_summary(stats['uplink_times']),
+        offload_path_time_s_uplink_plus_edge=_series_summary(stats['offload_path_times']),
+        max_delay_reconstruction_error_s=float(stats['max_delay_error']),
+    )
+
+
 def run_experiment(algo_name, n_episodes, seed, tag='default',
                    use_hotspot=False, disable_wct=False, env_config=None,
                    warmup_steps=None, batch_size=None, eval_episodes=50):
@@ -399,6 +478,11 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
                     status='running', timing_scope='preprocess+policy+safety+association+allocation',
                     time_feature='min(elapsed_slots/time_reference_slots, 1)',
                     validation_note='Same training hotspot distribution, independent seeds; not held-out test')
+    manifest['training_rollout_metric_note'] = (
+        'Per-episode offloading and processing-time metrics use executed training actions; '
+        'warmup random actions and exploration noise are included. Use frozen-policy replay '
+        'for deterministic final-model metrics.'
+    )
     manifest['effective_agent_settings'] = {
         'n_step': getattr(getattr(agent, 'n_step_buffer', None), 'n_step', None),
         'lambda_surprise': getattr(agent.buffer, 'lambda_surprise', None),
@@ -425,6 +509,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             agent.ou_noise.reset()
 
         safety_stats = _new_safety_stats()
+        offload_timing_stats = _new_offload_timing_stats()
         ep_reward = 0.0
         ep_d, ep_r = [], []
         step_q_vals, step_td_errors, step_critic_losses = [], [], []
@@ -443,9 +528,14 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             policy_seconds = time.perf_counter() - policy_started
             # The critic and entropy are defined over this original proposal.
             proposal = np.asarray(action).copy()
+            active_before = env.active_mask.copy()
+            task_sizes_before = env.task_list.copy()
+            ue_positions_before = env.loc_ue.copy()
             step_started = time.perf_counter()
             next_state, reward, done, info = env.step(proposal)
             env_seconds = time.perf_counter() - step_started
+            _record_offload_timing(offload_timing_stats, env, active_before,
+                                   task_sizes_before, ue_positions_before, info)
             _record_safety_stats(safety_stats, info, env_seconds)
             metrics.record(info, reward, policy_seconds, env_seconds)
             s_next_norm = normalizer.normalize(next_state)
@@ -485,6 +575,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             noise_std = max(EXPLORE_NOISE_MIN, noise_std * EXPLORE_DECAY)
 
         metrics_row = metrics.finish()
+        metrics_row['training_rollout_offload'] = _finish_offload_timing_stats(offload_timing_stats)
         metrics_row['hotspot_schedule'] = env.hotspot_schedule[:env.slot_num].tolist()
         metrics_row['hotspot_segments'] = env.hotspot_segments
         with metrics_path.open('a', encoding='utf-8') as stream:
