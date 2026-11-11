@@ -152,6 +152,78 @@ class UAVEnv:
 
     # ==================================================================
     def step(self, action):
+        """Execute only a phase-feasible action; replay retains the proposal.
+
+        The deterministic shield is part of the environment transition. Its
+        bounded candidate search is not an exact continuous-space projection.
+        """
+        proposed = np.asarray(action, dtype=np.float64).copy()
+        if proposed.shape != (self.action_dim,) or not np.all(np.isfinite(proposed)):
+            raise ValueError('Action must be a finite vector of action_dim entries')
+        candidate = np.clip(proposed, -1.0, 1.0)
+        original_check = self._step_candidate(candidate, evaluate_only=True)
+        checks = 1
+        selected = candidate if original_check['feasible'] else None
+        if selected is None:
+            # Closest feasible member of a finite set, measured in normalized
+            # actor coordinates. Always recompute association/resources/charging.
+            best_distance = float('inf')
+            for alternative in self._safety_candidates(candidate):
+                check = self._step_candidate(alternative, evaluate_only=True)
+                checks += 1
+                if check['feasible']:
+                    distance = float(np.sum((alternative - candidate) ** 2))
+                    if distance < best_distance:
+                        selected = alternative.copy()
+                        best_distance = distance
+        if selected is None:
+            result = self._energy_failure(
+                'shield_search_exhausted', original_check['energy_ok'],
+                original_failure_phase=original_check['phase'])
+        else:
+            result = self._step_candidate(selected)
+        info = result[3]
+        info.update({
+            'proposed_action': proposed,
+            'executed_action': None if selected is None else selected.copy(),
+            'shield_intervened': selected is None or not np.array_equal(selected, proposed),
+            'shield_checks': checks,
+            'shield_original_failure': original_check['phase'],
+            'shield_status': ('no_feasible_candidate_found' if selected is None
+                              else 'accepted' if np.array_equal(selected, proposed)
+                              else 'corrected'),
+        })
+        return result
+
+    def _safety_candidates(self, action):
+        """Bounded joint candidates; failure is not proof of an empty feasible set."""
+        # Preserve motion and reduce service first, including local-only service.
+        for scale in (0.75, 0.5, 0.25, 0.0):
+            candidate = action.copy()
+            candidate[3*K:] = (action[3*K:] + 1.0) * scale - 1.0
+            yield candidate
+        towards_wct = np.zeros(K)
+        for k in range(K):
+            if len(self.wct_positions):
+                delta = self.wct_positions - self.loc_uav[k]
+                target = delta[np.argmin(np.sum(delta ** 2, axis=1))]
+                towards_wct[k] = math.atan2(target[1], target[0])
+        original_angles = np.arctan2(action[1:3*K:3], action[0:3*K:3])
+        # Include multiple speeds: rotary-wing power need not decrease with speed.
+        for angles in (original_angles, towards_wct,
+                       original_angles + math.pi / 2,
+                       original_angles - math.pi / 2,
+                       original_angles + math.pi):
+            for speed_fraction in (0.0, 0.25, 0.5, 0.75, 1.0):
+                for scale in (1.0, 0.5, 0.0):
+                    candidate = action.copy()
+                    candidate[0:3*K:3] = np.cos(angles)
+                    candidate[1:3*K:3] = np.sin(angles)
+                    candidate[2:3*K:3] = 2.0 * speed_fraction - 1.0
+                    candidate[3*K:] = (action[3*K:] + 1.0) * scale - 1.0
+                    yield candidate
+
+    def _step_candidate(self, action, evaluate_only=False):
         action = np.clip(action, -1.0, 1.0)
         # ★ cos/sin 角度表示: 消除 0/2π 不连续性
         theta_list = np.zeros(K)
@@ -177,11 +249,19 @@ class UAVEnv:
             new_x, new_y = self._bounce(new_x, new_y)
             new_loc_uav[k] = [new_x, new_y]
 
-            actual_dist = math.sqrt(
-                (new_x - self.loc_uav[k, 0]) ** 2 +
-                (new_y - self.loc_uav[k, 1]) ** 2)
-            actual_speed = actual_dist / T_FLY if T_FLY > 0 else 0.0
-            fly_energy[k] = self._fly_power(actual_speed) * T_FLY
+            # Ideal mirror reflection changes heading, not speed or duration.
+            # Use this candidate's speed (including any shield correction),
+            # not the displacement between the initial and reflected positions.
+            fly_energy[k] = self._fly_power(speed_list[k]) * T_FLY
+
+        # Flight must be funded before any hovering-phase harvesting.
+        battery_start = self.e_battery_uav.copy()
+        flight_ok = battery_start >= fly_energy
+        if not np.all(flight_ok):
+            if evaluate_only:
+                return {'feasible': False, 'phase': 'flight', 'energy_ok': flight_ok}
+            raise RuntimeError('Shield attempted to execute an infeasible flight')
+        battery_postflight = battery_start - fly_energy
 
         # ---- 2. 距离关联 ----
         association = self._distance_association(new_loc_uav)
@@ -203,6 +283,7 @@ class UAVEnv:
         delays = np.zeros(M)
         rho_list = np.zeros(M)
         comp_energy = np.zeros(K)
+        edge_delays = np.zeros(M)
 
         for i in range(M):
             # ★ 无任务的用户跳过
@@ -232,6 +313,7 @@ class UAVEnv:
                 T_trans = x_i * D_i / max(R_ik, 1e-10)
                 T_edge_comp = x_i * C_i / max(f_ik, 1e-10)
                 T_edge = T_trans + T_edge_comp
+                edge_delays[i] = T_edge
                 T_i = max(T_local, T_edge)
                 comp_energy[k] += KAPPA * (f_ik ** 3) * T_edge_comp
 
@@ -246,20 +328,31 @@ class UAVEnv:
         charge_power = self._compute_charging(new_loc_uav)
         energy_in = charge_power * T_COM
 
-        # ---- 6. 电量更新 ----
-        energy_ok = np.ones(K, dtype=bool)
-        for k in range(K):
-            net_energy = energy_out[k] - energy_in[k]
-            if net_energy > 0:
-                if self.e_battery_uav[k] >= net_energy:
-                    self.e_battery_uav[k] -= net_energy
-                else:
-                    self.e_battery_uav[k] = 0.0
-                    energy_ok[k] = False
-            else:
-                self.e_battery_uav[k] = min(
-                    self.e_battery_uav[k] - net_energy,
-                    E_BATTERY_INIT)
+        # Phase-level service energy accounting: computation energy is represented
+        # by its average power comp_energy / T_COM during this phase. This is
+        # not a task-event-level execution model. Harvesting can fund service,
+        # but can never fund the preceding flight (checked above).
+        service_end = battery_postflight + energy_in - hover_energy - comp_energy
+        energy_ok = service_end >= 0.0
+        if not np.all(energy_ok):
+            if evaluate_only:
+                return {'feasible': False, 'phase': 'service', 'energy_ok': energy_ok}
+            raise RuntimeError('Shield attempted to execute infeasible service')
+        # Accepted UAV work must finish before the service phase ends.
+        # Local completion latency remains an analytical metric, without a
+        # local deadline or a cross-slot local queue in this model.
+        deadline_ok = edge_delays <= T_COM
+        if not np.all(deadline_ok):
+            if evaluate_only:
+                return {'feasible': False, 'phase': 'edge_deadline',
+                        'energy_ok': energy_ok, 'deadline_ok': deadline_ok}
+            raise RuntimeError('Shield attempted to execute overdue edge work')
+        if evaluate_only:
+            return {'feasible': True, 'phase': None, 'energy_ok': energy_ok,
+                    'battery_postflight': battery_postflight,
+                    'battery_end': np.minimum(E_BATTERY_INIT, service_end)}
+        # Constant phase-average net power: endpoints suffice in this model.
+        self.e_battery_uav = np.minimum(E_BATTERY_INIT, service_end)
 
         self.loc_uav = new_loc_uav
 
@@ -317,16 +410,53 @@ class UAVEnv:
             'charge_power': charge_power,
             'energy_in': energy_in,
             'energy_out': energy_out,
+            'battery_start': battery_start,
+            'battery_postflight': battery_postflight,
+            'comp_energy': comp_energy,
+            'edge_delays': edge_delays,
+            'energy_failure_phase': None,
+            'service_executed': True,
             'step': self.current_step,
         }
         return self._get_obs(), reward, done, info
+
+    def _energy_failure(self, phase, energy_ok, **diagnostics):
+        """Search failed before execution: no motion, consumption, or charging.
+
+        This does not certify that the continuous feasible set is empty.
+        The returned state is terminal; reset is required before another step.
+        """
+        self.current_step += 1
+        reward = -float(M)
+        # Local-only fallback is a finite diagnostic, not completed UAV service.
+        delays = np.where(self.active_mask, self.task_list * S_CYCLES / F_UE, 0.0)
+        info = {
+            'energy_ok': energy_ok, 'energy_failure_phase': phase,
+            'service_executed': False, 'step': self.current_step,
+            'delays': delays, 'rho': np.zeros(M),
+            'association': np.full(M, -1, dtype=int), 'N_k': np.zeros(K, dtype=int),
+            'delay_active_mean': float(np.sum(delays) / max(np.sum(self.active_mask), 1)),
+            'rho_mean': 0.0, 'eta_E': 0.0,
+            'charge_power': np.zeros(K), 'energy_in': np.zeros(K),
+            'energy_out': np.zeros(K),
+            'candidate_energy': diagnostics,
+        }
+        self.trajectory_log.append(self.loc_uav.copy())
+        self.ue_position_log.append(self.loc_ue.copy())
+        self.association_log.append(info['association'].copy())
+        self.delay_log.append(delays.copy())
+        self.rho_log.append(info['rho'].copy())
+        self.reward_log.append(reward)
+        self.battery_log.append(self.e_battery_uav.copy())
+        self.charge_log.append(info['charge_power'].copy())
+        return self._get_obs(), reward, True, info
 
     # ==================================================================
     # WCT 充电 (eq.9-14)
     # ==================================================================
     def _compute_charging(self, uav_locs):
         if self.disable_wct:
-            return np.zeros(K), np.zeros(K)
+            return np.zeros(K)
         p_matrix = np.zeros((N_WCT, K))
         for j in range(N_WCT):
             for k in range(K):

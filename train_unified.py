@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import argparse
+import json
 import numpy as np
 import torch
 
@@ -327,6 +328,10 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
 
     ep_rewards, avg_delays, avg_rhos, ep_survival_steps = [], [], [], []
     ep_avg_q, ep_avg_td_error, ep_critic_loss = [], [], []  # 训练诊断指标
+    shield_stats = {'steps': 0, 'interventions': 0, 'search_failures': 0,
+                    'deadline_proposals': 0, 'env_seconds': 0.0}
+    result_dir = os.path.join(os.path.dirname(__file__), "results", tag)
+    os.makedirs(result_dir, exist_ok=True)
     t_start = time.time()
 
     print(f"\n{'='*58}")
@@ -351,7 +356,15 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             else:
                 action = agent.select_action(s_norm, noise_std=noise_std, use_ou=True)
 
+            step_start = time.perf_counter()
             next_state, reward, done, info = env.step(action)
+            shield_stats['env_seconds'] += time.perf_counter() - step_start
+            shield_stats['steps'] += 1
+            shield_stats['interventions'] += int(info.get('shield_intervened', False))
+            shield_stats['search_failures'] += int(
+                info.get('shield_status') == 'no_feasible_candidate_found')
+            shield_stats['deadline_proposals'] += int(
+                info.get('shield_original_failure') == 'edge_deadline')
             s_next_norm = normalizer.normalize(next_state)
 
             if needs_training:
@@ -396,7 +409,7 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
         ep_avg_td_error.append(np.mean(step_td_errors) if step_td_errors else 0.0)
         ep_critic_loss.append(np.mean(step_critic_losses) if step_critic_losses else 0.0)
 
-        if (ep + 1) % max(1, n_episodes // 10) == 0 or ep == 0:
+        if (ep + 1) % min(50, max(1, n_episodes // 10)) == 0 or ep == 0:
             r50 = np.mean(ep_rewards[-50:]) if len(ep_rewards) >= 50 else np.mean(ep_rewards)
             rho50 = np.mean(avg_rhos[-50:]) if len(avg_rhos) >= 50 else np.mean(avg_rhos)
             surv50 = np.mean(ep_survival_steps[-50:]) if len(ep_survival_steps) >= 50 else np.mean(ep_survival_steps)
@@ -404,6 +417,17 @@ def run_experiment(algo_name, n_episodes, seed, tag='default',
             print(f"  [{algo_name}] Ep {ep+1:5d}/{n_episodes} | "
                   f"R_50: {r50:.2f} | ρ_50: {rho50:.3f} | Surv_50: {surv50:.1f} | "
                   f"Time: {elapsed:.0f}s")
+            progress = dict(shield_stats, episode=ep + 1, episodes=n_episodes,
+                            seed=seed, elapsed_seconds=elapsed,
+                            recent_reward=float(r50), recent_rho=float(rho50))
+            with open(os.path.join(result_dir, f'{algo_name}_progress.json'),
+                      'w', encoding='utf-8') as handle:
+                json.dump(progress, handle, indent=2)
+            np.savez(os.path.join(result_dir, f'{algo_name}_progress.npz'),
+                     ep_reward=ep_rewards, avg_delay=avg_delays,
+                     avg_rho=avg_rhos, survival_steps=ep_survival_steps)
+            if needs_training and (ep + 1) % 250 == 0:
+                agent.save(os.path.join(result_dir, f'{algo_name}_checkpoint.pth'))
 
     total_time = time.time() - t_start
     print(f"  [{algo_name}] Done! {total_time:.0f}s ({total_time/60:.1f}min)")
